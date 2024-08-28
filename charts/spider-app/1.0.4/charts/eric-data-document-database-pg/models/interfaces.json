@@ -1,0 +1,86 @@
+{
+    "metadata": {
+      "serviceHelmChartName": "eric-data-document-database-pg",
+      "usedSchemaVersion": "1.0.0",
+      "fileVersion": "1.0.0",
+      "dateEdited": "2023-08-31"
+    },
+    "interfaceImpls": [
+      {
+        "id": "ERIC.DOCUMENT.DATABASE.PG",
+        "provides": {
+          "netIf": [
+            {
+              "id": "IF.ADP.DDPG.<@instance@>.WIRE.PROTOCOL.V2",
+              "description": "A PostgreSQL interface",
+              "specUri": "postgresql.org/docs/13/protocol.html",
+              "specVer": "1.0.0",
+              "type": "PGWP",
+              "setup": "direct",
+              "maturity": "stable",
+              "scope": "clusterInternal"
+            },
+            {
+              "id": "IF.ADP.DDPG.<@instance@>.WIRE.PROTOCOL.V3",
+              "description": "A PostgreSQL interface",
+              "specUri": "postgresql.org/docs/13/protocol.html",
+              "specVer": "1.0.0",
+              "type": "PGWP",
+              "setup": "direct",
+              "maturity": "stable",
+              "scope": "clusterInternal"
+            }
+          ],
+          "dataIf": [
+            {
+              "id": "IF.ADP.DDPG.HELM_VALUES_SCHEMA.V1",
+              "description": "Helm Values Model Schema",
+              "specUri": "values.schema.json",
+              "specVer": "1.0.0",
+              "type": "HelmValues",
+              "scope": "clusterExternal",
+              "maturity": "stable",
+              "roles":[
+                "definer"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.DDPG.IF.BRO",
+        "uses": {
+          "netIf": [
+            {
+              "id": "IF.ADP.BRO.CTRL.GRPC.V1",
+              "specVer": "1.0.0",
+              "duringPhases": [
+                "runtime"
+              ]
+            },
+            {
+              "id": "IF.ADP.BRO.DATA.GRPC.V1",
+              "specVer": "1.0.0",
+              "duringPhases": [
+                "runtime"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.DDPG.IF.PM",
+        "uses": {
+          "netIf": [
+            {
+              "id": "IF.ADP.PM.PROM.SCRAPING.V0",
+              "specVer": "0.0.4",
+              "duringPhases": [
+                "runtime"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+}

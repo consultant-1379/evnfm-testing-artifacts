@@ -1,0 +1,66 @@
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- if $authorizationProxy.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  ## NOTE: The name of the config map MUST be as follows. This name is
+  ## used by authorization proxy templates as configmap name.
+  name: {{ template "eric-pm-server.authz-proxy-service-name" . }}-authorizationrules
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations: {{- include "eric-pm-server.annotations" $ | nindent 4 }}
+data:
+  authz-proxy-authorizationrules.yaml: |2
+      # NOTE: More information can be found in the Authorization Proxy (APO) example files in the APO repo.
+      ##
+      ## ======= roles:
+      ## It is mandatory to list all roles used in permissions.
+      ## Input parameters:
+      ##    Mandatory; String
+      ##    "- name:",  Name of the role
+      roles:
+        - name: system-admin
+        - name: system-read-only
+        - name: system-security-admin
+      ## ======= resources
+      ## Exposed URIs are expressed as "resources".
+      ##
+      ## Input parameters:
+      ##   Mandatory; String
+      ##   "- name:", Name of the resource
+      ##   Mandatory; String
+      ##   "- uri:",  Uri of the protected resource, URI suppport following metacharacters
+      ##              "*"  all direct children
+      ##              "**" whole subtree including all children
+      resources:
+        - name: restapi-pm-query
+          uris:
+            - /api/v1/query
+      ## ======= permissions
+      ##
+      ## Input parameters:
+      ##   Mandatory; Array of string
+      ##   "- name:" Name of the permissions
+      ##   Config
+      ##      Mandatory; Array of string
+      ##      "- resources:", array of resources to which permission is applied
+      ##      Mandatory; Array of string
+      ##      "- operations:", HTTP operation which are allowed in this permission
+      ##                       Allowed scopes are fixed to:
+      ##                       ["GET","HEAD","POST","PUT","DELETE","CONNECT","OPTIONS","TRACE"]
+      ##      Mandatory; Array of String
+      ##      "- roles:" Name of the parameters
+      permissions:
+        ## --------------------------------------
+        ## A user with a role system-admin or system-read-only is allowed to
+        ## apply operation: "GET"
+        ## to all resources except the "secure-resource"
+        ## --------------------------------------
+      - name: Get query data
+        config:
+          resources:        ["restapi-pm-query"]
+          operations:       ["GET"]
+          roles:            ["system-admin","system-security-admin","system-read-only"]
+{{- end -}}

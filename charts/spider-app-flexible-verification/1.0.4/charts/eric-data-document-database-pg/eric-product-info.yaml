@@ -1,0 +1,66 @@
+productName: "Document Database PG"
+productNumber: "CXC 201 1475"
+images:
+  metrics:
+    productName: "Document Database Metrics Image"
+    productNumber: "CXC 201 2011"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-document-database-pg-release/data"
+    name: "eric-data-document-database-metrics"
+    tag: 8.19.0-40
+  kubeclient:
+    productName: "Document Database Kube-Client Image"
+    productNumber: "CXC 201 1992"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-document-database-pg-release/data"
+    name: "eric-data-document-database-kube-client"
+    tag: 8.19.0-40
+  bra:
+    productName: "Document Database BRA Image"
+    productNumber: "CXC 201 2498"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-document-database-pg-release/data"
+    name: "eric-data-document-database-bra"
+    tag: 8.19.0-40
+  pg13:
+    productName: "Document Database PG13 Image"
+    productNumber: "CXC 201 3710"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-document-database-pg-release/data"
+    name: "eric-data-document-database-pg13"
+    tag: 8.19.0-40
+  brm13:
+    productName: "Document Database BRM PG13 Image"
+    productNumber: "CXC 201 3711"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-document-database-pg-release/data"
+    name: "eric-data-document-database-brm13"
+    tag: 8.19.0-40
+  feoperator:
+    productName: "Document Database PG Fe Operator Image"
+    productNumber: "CXC 201 3919"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-document-database-pg-release/data"
+    name: "eric-data-document-database-operator-fe"
+    tag: 8.19.0-40
+  beoperator:
+    productName: "Document Database PG Be Operator Image"
+    productNumber: "CXC 201 3920"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-document-database-pg-release/data"
+    name: "eric-data-document-database-operator-be"
+    tag: 8.19.0-40
+  hooklauncher:
+    productName: Smart Helm Hook Image
+    productNumber: CXU 101 1909
+    registry: armdocker.rnd.ericsson.se
+    repoPath: proj-adp-shh-released
+    name: eric-lcm-smart-helm-hooks-hooklauncher
+    tag: 2.11.0-4
+  logshipper:
+    productName: "ADP Log Shipper Sidecar Image"
+    productNumber: "CXU 101 1191"
+    registry: "armdocker.rnd.ericsson.se"
+    repoPath: "proj-adp-log-released"
+    name: "eric-log-shipper-sidecar"
+    tag: 16.2.0-20

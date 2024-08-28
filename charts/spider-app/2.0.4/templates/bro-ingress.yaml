@@ -1,0 +1,48 @@
+#
+# COPYRIGHT Ericsson 2020
+#
+#
+#
+# The copyright to the computer program(s) herein is the property of
+#
+# Ericsson Inc. The programs may be used and/or copied only with written
+#
+# permission from Ericsson Inc. or in accordance with the terms and
+#
+# conditions stipulated in the agreement/contract under which the
+#
+# program(s) have been supplied.
+#
+
+{{ if .Values.bro.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: {{ template "spider-app.name" . }}
+    chart: {{ template "spider-app.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  {{- include "spider-app.kubernetes-io-info" .| nindent 4 }}
+  annotations:
+  {{- include "spider-app.helm-annotations" .| nindent 4 }}
+  name: {{ template "spider-app.name" . }}-bro
+spec:
+ {{- if .Values.bro.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - {{ required "A valid .Values.global.hosts.bro entry required" .Values.global.hosts.bro}}
+    secretName: {{ required "A valid .Values.bro.ingress.tls.secretName entry required" .Values.bro.ingress.tls.secretname }}
+ {{- end }}
+  rules:
+  - host: {{.Values.global.hosts.bro }}
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: eric-ctrl-bro
+              port:
+                number: 7001
+{{- end }}

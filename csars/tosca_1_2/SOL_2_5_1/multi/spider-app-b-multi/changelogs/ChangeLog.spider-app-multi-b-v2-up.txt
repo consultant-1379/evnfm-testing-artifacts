@@ -1,0 +1,20 @@
+1.0.0
+- Add upgrade operations, upgrade policies and modification_qualifier option "up".
+1.0.1
+- Replace magic number with ^.*$ regexp
+1.0.2
+- Remove redundant rollback at failure pattern from upgrade operations
+1.0.3
+- Move not standard selector type logic from imports to vnfd
+1.0.4
+- Remove usage of deprecated com.ericsson.sec.tls/v1alpha1, siptls.sec.ericsson.com/v1alpha1
+1.0.5
+- Update siptls.sec.ericsson.com to version 6.1.0+1
+1.0.6
+- Changed versions of charts
+- Added eric-data-document-database-pg to spider-app
+1.0.7
+- Disabled by default eric-data-document-database
+- Disabled PVCs for eric-data-document-database and influxdb
+1.0.8
+- Updated eric-pm-bulk-reporter to use replicaCount from values, in order to support Scale

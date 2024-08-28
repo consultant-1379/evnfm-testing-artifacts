@@ -1,0 +1,109 @@
+{{- if (eq (include "eric-data-document-database-pg.load-legecy-template-enabled" .) "true") }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-role
+  labels: {{- include "eric-data-document-database-pg.labels" . | nindent 4 }}
+  annotations: {{- include "eric-data-document-database-pg.annotations" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - watch
+  # delete is required only for 'patronictl remove'
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - patch
+  # the following three privileges are necessary only when using endpoints
+  - create
+  - list
+  - watch
+  # delete is required only for for 'patronictl remove'
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - "apps"
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+{{- if .Capabilities.APIVersions.Has "siptls.sec.ericsson.com/v1" }}
+- apiGroups:
+  - siptls.sec.ericsson.com
+  resources:
+  - internalcertificates
+  verbs:
+  - create
+  - get
+  - list
+  - delete
+{{- end }}
+# The following rules is for Openshift
+- apiGroups:
+  - ""
+  resources:
+  - endpoints/restricted
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - services
+  resourceNames:
+  - {{ template "eric-data-document-database-pg.name" . }}
+  - {{ template "eric-data-document-database-pg.name" . }}-replica
+  verbs:
+  - get
+  - list
+  - patch
+{{- end }}

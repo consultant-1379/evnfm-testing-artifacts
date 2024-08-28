@@ -1,0 +1,38 @@
+replicaCount: 1
+global:
+  registry:
+    url: armdocker.rnd.ericsson.se
+    pullSecret: ""
+imageCredentials:
+  repoPath: sandbox/adp-staging/adp-cicd
+  pullPolicy: Always
+  registry:
+    url: null
+images:
+  pmtestappmonitor:
+    name: eric-pm-testapp-controller
+    tag: 0.4.0-7
+resources:
+  pmtestappmonitor:
+    limits:
+      cpu: 100m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+service:
+  internalPort: 80
+prometheus:
+  serviceName: eric-pm-server
+  servicePort: 9090
+influxdb:
+  serviceName: influxdb-service
+  servicePort: 8086
+pmtestapp:
+  serviceName: pm-testapp
+  servicePort: 8080

@@ -1,0 +1,5 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+{{- if eq (include "eric-data-document-database-pg.isOpMigrationRequired" .) "true" -}}
+  {{- include "eric-data-document-database-pg.oPCleanPGDataJob" .}}
+{{- end }}
+{{- end }}

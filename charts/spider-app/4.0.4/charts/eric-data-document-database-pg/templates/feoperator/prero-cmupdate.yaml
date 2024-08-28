@@ -1,0 +1,142 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+{{- $globalValue := fromJson (include "eric-data-document-database-pg.global" .) -}}
+{{- $logshipperValues := fromJson (include "eric-data-document-database-pg.ls-values" .) -}}
+{{- $logshipperCopied := deepCopy . -}}
+{{- $logshipperMerged := (mergeOverwrite $logshipperCopied $logshipperValues) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-prero-cmupdate
+  labels: {{- include "eric-data-document-database-pg.labels" . | nindent 4 }}
+  annotations:
+    {{- $jobAnn := dict -}}
+    {{- $_ := set $jobAnn "helm.sh/hook" "pre-rollback" -}}
+    {{- $_ := set $jobAnn "helm.sh/hook-delete-policy" "hook-succeeded,before-hook-creation" -}}
+    {{- $_ := set $jobAnn "helm.sh/hook-weight" "-203" -}}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $jobAnn $commonAnn)) | trim | nindent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+        {{- $podTempLabels := dict -}}
+        {{- $_ := set $podTempLabels "sidecar.istio.io/inject" "false" -}}
+        {{- $_ := set $podTempLabels "app" (printf "%s-%s" (include "eric-data-document-database-pg.name" .) "prero-cmupdate") -}}
+        {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+        {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $podTempLabels $commonLabels)) | trim | nindent 8 }}
+      annotations:
+        {{- $podTempAnn := dict -}}
+        {{- if .Values.bandwidth.cleanuphook.maxEgressRate }}
+          {{- $_ := set $podTempAnn "kubernetes.io/egress-bandwidth" (.Values.bandwidth.cleanuphook.maxEgressRate | toString) -}}
+        {{- end }}
+        {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+        {{- $appArmorAnn := include "eric-data-document-database-pg.appArmorProfile" (dict "root" . "Scope" "NoLSHook" "containerList" (list "prero-cmupdate")) | fromYaml -}}
+        {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $podTempAnn $appArmorAnn $commonAnn)) | trim | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ template "eric-data-document-database-pg.name" . }}-prero-cmupdate
+      {{- if include "eric-data-document-database-pg.pullSecrets" . }}
+      imagePullSecrets:
+        - name: {{ template "eric-data-document-database-pg.pullSecrets" . }}
+      {{- end }}
+      securityContext:
+        fsGroup: {{ template "eric-data-document-database-pg.fsGroup.coordinated" . }}
+          {{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.Version }}
+        fsGroupChangePolicy: "OnRootMismatch"
+          {{- end }}
+        {{- if include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . -}}
+{{- include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . | nindent 8 }}
+        {{- end }}
+{{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "Pod") | nindent 8 }}
+      {{- if or (not (empty .Values.nodeSelector.oppatchhook)) (not (eq "{}" (include "eric-data-document-database-pg.global.nodeSelector" .))) }}
+      nodeSelector:
+{{- include "eric-data-document-database-pg.nodeSelector.oppatchhook" . | nindent 8 }}
+      {{- end }}
+      tolerations:
+{{ include "eric-data-document-database-pg.merge-tolerations" (dict "root" . "podbasename" "oppatchhook") | nindent 8}}
+      {{- if .Values.podPriority.cleanuphook.priorityClassName }}
+      priorityClassName: {{ .Values.podPriority.cleanuphook.priorityClassName | quote }}
+      {{- end }}
+      containers:
+        - name: prero-cmupdate
+          image: {{ template "eric-data-document-database-pg.kubeclientImagePath" . }}
+          imagePullPolicy: {{ include "eric-data-document-database-pg.imagePullPolicy" . | quote }}
+          env:
+          - name: TZ
+            value: {{ $globalValue.timezone | quote }}
+          - name: LOG_SCHEMA
+            value: {{ template "eric-data-document-database-pg.logSchema" . }}
+          - name: LOG_REDIRECT
+            value: "stdout"
+          - name: CLUSTER_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: CHART_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: RELEASE_NAME
+            value: {{ .Release.Name | quote }}
+          - name: OP_ENABLED
+            {{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+            value: "true"
+            {{- else }}
+            value: "false"
+            {{- end }}
+          - name: PRODUCT_REV
+            value: {{ template "eric-data-document-database-pg.helm-annotations_product_revision" . }}
+          - name: KUBERNETES_NAMESPACE
+            valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+          - name: TRANSIT_COMPONENT
+            value: {{ template "eric-data-document-database-pg.name" . }}-transit-pvc
+          - name: RELEASE_UPGRADE
+            value: {{ .Release.IsUpgrade | quote }}
+          - name: ENABLE_SIPTLS
+            {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+            value: "true"
+            {{- else }}
+            value: "false"
+            {{- end }}
+          - name: CONTAINER_NAME
+            value:  {{ template "eric-data-document-database-pg.name" . }}-prero-cmupdate
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - "/usr/bin/catatonit -- 
+              {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }}
+              /usr/bin/python  {{ template "eric-data-document-database-pg.hook.scriptPath" . }}/opupgrade_handler.py --prerollback_configmap_update "
+          securityContext:
+            {{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "prero-cmupdate") | nindent 12 }}
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+            {{- if .Values.resources.kube_client.requests.cpu }}
+              cpu: {{ .Values.resources.kube_client.requests.cpu  | quote }}
+            {{- end }}
+            {{- if .Values.resources.kube_client.requests.memory }}
+              memory: {{ .Values.resources.kube_client.requests.memory  | quote }}
+            {{- end }}
+            {{- if index .Values.resources.kube_client.requests "ephemeral-storage" }}
+              ephemeral-storage: {{ index .Values.resources.kube_client.requests "ephemeral-storage" | quote }}
+            {{- end }}
+            limits:
+            {{- if .Values.resources.kube_client.limits.cpu }}
+              cpu: {{ .Values.resources.kube_client.limits.cpu  | quote }}
+            {{- end }}
+            {{- if .Values.resources.kube_client.limits.memory }}
+              memory: {{ .Values.resources.kube_client.limits.memory  | quote }}
+            {{- end }}
+            {{- if index .Values.resources.kube_client.limits "ephemeral-storage" }}
+              ephemeral-storage: {{ index .Values.resources.kube_client.limits "ephemeral-storage" | quote }}
+            {{- end }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+{{- end }}

@@ -1,0 +1,7 @@
+users:
+ - user: adpuser
+   groups: [pm-sftp-users]
+   encryptedPass: $1$eY4LJ.EZ$MCjT5xWEbxirCC77ZtEQB.
+ - user: bro
+   groups: [pm-sftp-users]
+   encryptedPass: $1$V5BiJM8m$Cd1LvkxswnMPyWSbd/JSz1

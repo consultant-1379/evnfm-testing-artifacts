@@ -1,0 +1,14 @@
+1.1.9
+- Add ChangeLog.txt and License file
+1.1.10
+- Changed "name" field value in tosca.policies.nfv.ScalingAspects to not match scaling aspect name
+1.1.11
+- Update package to use helm 3 version
+1.1.12
+- Remove usage of deprecated com.ericsson.sec.tls/v1alpha1, siptls.sec.ericsson.com/v1alpha1
+1.1.13
+- Changed versions of charts
+1.1.14
+- Disable PVC for influxdb
+1.1.15
+- Updated eric-pm-bulk-reporter to use replicaCount from values, in order to support Scale

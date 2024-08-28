@@ -1,0 +1,15 @@
+{{/*
+Logshipper logtransformer client certificate for:
+  - brAgent
+  - postgres
+*/}}
+{{- if (eq (include "eric-data-document-database-pg.log.streamingMethod" .) "true") }}
+  {{- $logshipperValues := fromJson (include "eric-data-document-database-pg.ls-values" .) -}}
+  {{- $logshipperCopied := deepCopy . -}}
+  {{- $logshipperMerged := (mergeOverwrite $logshipperCopied $logshipperValues) -}}
+  {{- if eq (include "eric-data-document-database-pg.logStatic" .) "true" }}
+  {{- include "eric-data-document-database-pg.logshipper-tls-cert-lt-client" $logshipperMerged }}
+  {{- else }}
+  {{- include "eric-log-shipper-sidecar.logshipper-tls-cert-lt-client" $logshipperMerged }}
+  {{- end }}
+{{- end }}

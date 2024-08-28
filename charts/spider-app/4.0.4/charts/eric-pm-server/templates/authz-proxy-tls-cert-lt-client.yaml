@@ -1,0 +1,27 @@
+{{/*
+  A logshipper-tls-cert-lt-client.yaml file already exist. This is the client cert for the logshipper
+  This is why naming of this file does not follow the AP example name
+
+  Authorization Proxy can use stream logging and if activated needs a client certificate for
+  communicating with the ADP Log Transformer.
+*/}}
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- $logStream := (include "eric-pm-server.log-streaming-activated" .) -}}
+{{- if $authorizationProxy.enabled }}
+{{- $global             := fromJson (include "eric-pm-server.authz-proxy-global" .) -}}
+{{- if and ($global.security.tls.enabled) ($logStream) -}}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  # The following name pattern is recommended, but not mandatory.
+  # Any unique name is sufficient.
+  name: {{ template "eric-pm-server.name" . }}-lt-client-cert
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations: {{- include "eric-pm-server.annotations" $ | nindent 4 }}
+spec:
+{{ include "eric-pm-server.authz-proxy-lt-client-cert-spec" . | indent 2 }}
+{{- end }}
+{{- end }}

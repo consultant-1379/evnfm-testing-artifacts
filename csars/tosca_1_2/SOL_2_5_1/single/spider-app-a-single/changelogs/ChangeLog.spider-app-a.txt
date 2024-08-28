@@ -1,0 +1,14 @@
+1.0.24
+- Updated eric-pm-bulk-reporter to use replicaCount from values, in order to support Scale
+1.0.23
+- Disable PVC for influxdb
+1.0.22
+- Changed versions of charts
+1.0.21
+- Update siptls.sec.ericsson.com to version 6.1.0+1
+1.0.20
+- Remove usage of deprecated com.ericsson.sec.tls/v1alpha1, siptls.sec.ericsson.com/v1alpha1
+1.0.19
+- Update package to use helm 3 version
+1.0.18
+- Add ChangeLog.txt and License file

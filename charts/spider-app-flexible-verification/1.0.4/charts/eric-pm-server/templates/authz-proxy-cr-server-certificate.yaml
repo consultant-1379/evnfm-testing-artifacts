@@ -1,0 +1,19 @@
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- if $authorizationProxy.enabled }}
+{{- $global             := fromJson (include "eric-pm-server.authz-proxy-global" .) -}}
+{{- if $global.security.tls.enabled }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  # The following name pattern is recommended, but not mandatory.
+  # Any unique name is sufficient.
+  name: {{ template "eric-pm-server.name" . }}-auth-proxy-server-cert
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations: {{- include "eric-pm-server.annotations" $ | nindent 4 }}
+spec:
+{{ include "eric-pm-server.authz-proxy-server-cert-spec" . | indent 2 }}
+{{- end }}
+{{- end }}

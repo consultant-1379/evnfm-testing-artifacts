@@ -1,0 +1,73 @@
+apiVersion: v2
+dependencies:
+  - condition: influxdb-service.enabled
+    name: influxdb
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm/
+    tags:
+      - all
+      - logging
+      - cm
+      - pm
+      - km
+      - alarm
+      - ddc
+    version: 4.11.0
+  - condition: eric-adp-gs-testapp.enabled
+    name: eric-adp-gs-testapp
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm
+    tags:
+      - all
+      - geode
+      - alarm
+      - cassandra
+      - consul
+      - kafka
+      - postgres
+      - pm
+      - idam
+    version: 0.0.1-162
+  - condition: eric-pm-server.enabled
+    name: eric-pm-server
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-gs-all-helm
+    tags:
+      - all
+      - pm
+    version: 11.2.0-13
+  - condition: pm-testapp.enabled
+    name: pm-testapp
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm/
+    tags:
+      - all
+      - pm
+    version: 1.0.1-1
+  - condition: eric-pm-testapp-controller.enabled
+    name: eric-pm-testapp-controller
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm/
+    tags:
+      - all
+      - pm
+    version: 0.4.0-13
+  - condition: eric-pm-bulk-reporter.enabled
+    name: eric-pm-bulk-reporter
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-gs-all-helm/
+    tags:
+      - all
+      - pm
+    version: 10.2.0-33
+  - condition: backup-controller.enabled
+    name: eric-ctrl-bro
+    repository: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/
+    tags:
+      - all
+      - pm
+    version: 9.1.0-32
+  - condition: eric-data-document-database-pg.enabled
+    name: eric-data-document-database-pg
+    repository: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/
+    tags:
+      - all
+      - pm
+    version: 8.19.0+40
+description: Multi Chart Testing App-Version 2
+name: spider-app
+version: 3.0.4

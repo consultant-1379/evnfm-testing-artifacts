@@ -1,0 +1,197 @@
+tosca_definitions_version: tosca_simple_yaml_1_2
+
+description: VNF Descriptor for Ericsson Basic App
+
+imports:
+  - etsi_nfv_sol001_vnfd_2_5_1_types.yaml
+  - etsi_nfv_sol001_vnfd_type_for_rollback_support.yaml
+
+data_types:
+  ericsson.datatypes.nfv.InstantiateVnfOperationAdditionalParameters:
+    derived_from: tosca.datatypes.nfv.VnfOperationAdditionalParameters
+    properties:
+      probesConfig.readinessProbe.delayBeforeReady:
+        type: string
+        description: delay before pod will report 'ready' state
+        required: false
+        default: "10"
+
+  ericsson.datatypes.nfv.ChangePackageVnfOperationAdditionalParameters:
+    derived_from: tosca.datatypes.nfv.VnfOperationAdditionalParameters
+    properties:
+      probesConfig.readinessProbe.delayBeforeReady:
+        type: string
+        description: delay before pod will report 'ready' state
+        required: false
+        default: "10"
+
+  ericsson.datatypes.nfv.VnfChangeToVersion2AdditionalParameters:
+    derived_from: tosca.datatypes.nfv.VnfOperationAdditionalParameters
+    properties:
+      rollback.str:
+        type: string
+        required: false
+        default: "basic-app-b-to-a"
+      rollback.str.required:
+        type: string
+        required: true
+        default: "basic-app-b to a"
+      rollback.bool.required:
+        type: boolean
+        description: tags
+        required: true
+        default: false
+
+interface_types:
+  ericsson.interfaces.nfv.ChangeCurrentVnfPackage:
+    derived_from: tosca.interfaces.nfv.ChangeCurrentVnfPackage
+    operations:
+      rollback_to_version_1_from_2:
+        description: operation for change from version 1 to 2
+        inputs:
+          additional_parameters:
+            type: ericsson.datatypes.nfv.VnfChangeToVersion2AdditionalParameters
+
+node_types:
+  Ericsson.TEST-VNF.testing.version_2:
+    derived_from: tosca.nodes.nfv.VNF
+
+    properties:
+      descriptor_id:
+        type: string
+        constraints: [ valid_values: [ 8eca7b35-72d8-4cab-9fee-138f1c3b9cacc ] ]
+        default: 8eca7b35-72d8-4cab-9fee-138f1c3b9cacc
+      descriptor_version:
+        type: string
+        constraints: [ valid_values: [ 1.0.6 ] ]
+        default: 1.0.6
+      provider:
+        type: string
+        constraints: [ valid_values: [ Ericsson ] ]
+        default: Ericsson
+      product_name:
+        type: string
+        constraints: [ valid_values: [ basic-app-b ] ]
+        default: basic-app-b
+      software_version:
+        type: string
+        constraints: [ valid_values: [ "1.0.6s" ] ]
+        default: "1.0.6s"
+      vnfm_info:
+        type: list
+        entry_schema:
+          type: string
+          constraints: [ valid_values: [ "3881:E-VNFM" ] ]
+        default: [ "3881:E-VNFM" ]
+      flavour_id:
+        type: string
+        constraints: [ valid_values: [ default ] ]
+        default: default
+      flavour_description:
+        type: string
+        default: ""
+
+    interfaces:
+      Vnflcm:
+        type: tosca.interfaces.nfv.Vnflcm
+        instantiate:
+          inputs:
+            helm_packages:
+              type: list
+              required: true
+              description: list of all helm charts
+            additional_parameters:
+              type: ericsson.datatypes.nfv.InstantiateVnfOperationAdditionalParameters
+              required: false
+        terminate: { }
+        scale: { }
+        change_package:
+          inputs:
+            helm_packages:
+              type: list
+              required: true
+              description: list of all helm charts
+            additional_parameters:
+              type: ericsson.datatypes.nfv.ChangePackageVnfOperationAdditionalParameters
+              required: false
+      EricssonChangeCurrentVnfPackage:
+        type: ericsson.interfaces.nfv.ChangeCurrentVnfPackage
+
+    artifacts:
+      helm_package1:
+        description: Helm package associated with this descriptor
+        type: tosca.artifacts.File
+        file: Definitions/OtherTemplates/busybox-simple-chart-2.0.0.tgz
+      software_images:
+        description: Location of the software images being used in this package
+        type: tosca.artifacts.nfv.SwImage
+        file: Files/images/docker.tar
+
+topology_template:
+  node_templates:
+    TEST-VNF:
+      type: Ericsson.TEST-VNF.testing.version_2
+      properties: { }
+      interfaces:
+        Vnflcm:
+          instantiate:
+            inputs:
+              helm_packages: [ get_artifact: [ SELF, helm_package1 ] ]
+          terminate: { }
+          scale: { }
+          change_package:
+            inputs:
+              helm_packages: [ get_artifact: [ SELF, helm_package1 ] ]
+        EricssonChangeCurrentVnfPackage:
+          inputs:
+            rollback_pattern: [ helm_package1: rollback ]
+            rollback_at_failure_pattern: [
+              helm_package1: 'helm_package1: rollback',
+            ]
+            temp: test
+
+  policies:
+    - ScalingAspects1:
+        type: tosca.policies.nfv.ScalingAspects
+        properties:
+          aspects:
+            Aspect1:
+              name: Aspect1 name
+              description: >
+                Scale level 0-5 maps to 1-5 for busybox
+                VNFC instances (1 instance per scale step)
+              max_scale_level: 5
+              step_deltas:
+                - delta_1
+
+    - busybox:
+        type: tosca.policies.nfv.VduInitialDelta
+        properties:
+          initial_delta:
+            number_of_instances: 1
+        targets: [ busybox ]
+
+    - Payload_ScalingAspectDeltas2:
+        type: tosca.policies.nfv.VduScalingAspectDeltas
+        properties:
+          aspect: Aspect1
+          deltas:
+            delta_1:
+              number_of_instances: 1
+        targets: [ busybox ]
+
+    - rollback_to_version_1_from_2:
+        type: tosca.policies.nfv.VnfPackageChange
+        properties:
+          selector:
+            source_descriptor_id: 8eca7b35-72d8-4cab-9fee-138f1c3b9cacc
+            destination_descriptor_id: 8eca7b35-72d8-4cab-9fee-138f1c3b9caaa
+            source_flavour_id: default
+          modification_qualifier: down
+          additional_modification_description: notusedinvnfm
+          component_mappings:
+            - component_type: vdu
+              source_id: server
+              destination_id: dbBackend
+              description: ..
+          destination_flavour_id: simple

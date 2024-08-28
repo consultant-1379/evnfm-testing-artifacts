@@ -1,0 +1,57 @@
+{{- if .Values.server.ha.enabled }}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+{{- if $g.security.tls.enabled }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  annotations: {{- include "eric-pm-server.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-server.promxyLabels" . | nindent 4 }}
+    {{- if .Values.promxy.extraLabels}}
+    {{ toYaml .Values.promxy.extraLabels | nindent 4 }}
+    {{- end}}
+  name: {{ template "eric-pm-server.promxyName" . }}-pms-client-cert
+spec:
+  kubernetes:
+    ## Mandatory; string.
+    ## The secret where the certificate and key are stored.
+    ## The same secret should not be used for multiple purposes, as SIP-TLS
+    ## overwrites the content periodically.
+    generatedSecretName: {{ template "eric-pm-server.promxyName" . }}-pms-client-cert
+
+    ## Optional; string.
+    ## The key name of the certificate in the secret.
+    ## If not given, 'cert.pem' is used.
+    certificateName: 'clicert.pem'
+
+    ## Optional; string.
+    ## The key name of the private key in the secret.
+    ## If not given, 'key.pem' is used.
+    privateKeyName: 'cliprivkey.pem'
+
+  certificate:
+    subject:
+      ## Mandatory; string.
+      ## The Subject Common Name (CN) of the certificate.
+      ## This typically corresponds to the domain name of the service or a client identifier.
+      cn: {{ template "eric-pm-server.name" . }}
+      ## debug options
+      # validity:
+      #   overrideTtl: 180
+{{- if not .Values.service.endpoints.reverseproxy.tls.certificateAuthorityBackwardCompatibility }}
+    issuer:
+      ## Optional; string.
+      ## The identifier for the Issuer CA. Decides from which CA to request the certificate.
+      ## It must be the same as the InternalUserCA custom resource metadata.name field.
+      ## If left empty, the certificate is issued by SIP-TLS intermediate CA which is part of
+      ## the SIP-TLS trusted root CA chain.
+      reference: {{ template "eric-pm-server.name" . }}-query-ca
+{{- end }}
+    extendedKeyUsage:
+      ## Mandatory; boolean
+      ## Whether 'TLS Web Client Authentication' is set.
+      tlsClientAuth: true
+      ## Mandatory; boolean
+      ## Whether 'TLS Web Server Authentication' is set.
+      tlsServerAuth: false
+{{- end }}
+{{- end }}

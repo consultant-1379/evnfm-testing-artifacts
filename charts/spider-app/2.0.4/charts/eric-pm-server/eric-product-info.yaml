@@ -1,0 +1,70 @@
+productName: PM Server HELM
+productNumber: CXC 201 1513
+images:
+  eric-pm-initcontainer:
+    productName: PM Server InitContainer IMAGE
+    productNumber: CXU 101 1467
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-initcontainer
+    tag: '11.2.0-12'
+  eric-pm-server:
+    productName: PM Server IMAGE
+    productNumber: CXC 201 1377
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-server
+    tag: '11.2.0-12'
+  eric-pm-configmap-reload:
+    productName: PM Server ConfigmapReload IMAGE
+    productNumber: CXC 201 1783
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-configmap-reload
+    tag: '11.2.0-12'
+  eric-pm-exporter:
+    productName: PM Server PmExporter IMAGE
+    productNumber: CXC 174 3401
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-exporter
+    tag: '11.2.0-12'
+  eric-pm-reverseproxy:
+    productName: PM Server ReverseProxy IMAGE
+    productNumber: CXC 201 2773
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-reverseproxy
+    tag: '11.2.0-12'
+  eric-pm-promxy:
+    productName: PM Server Promxy IMAGE
+    productNumber: CXU 101 1709
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-promxy
+    tag: '11.2.0-12'
+  hooklauncher:
+    productName: Smart Helm Hook Image
+    productNumber: CXU 101 1909
+    registry: armdocker.rnd.ericsson.se
+    repoPath: proj-adp-shh-released
+    name: eric-lcm-smart-helm-hooks-hooklauncher
+    tag: '2.6.0-3'
+
+  # Authorization Proxy addition
+  # Note that REPO_PATH and tag is hard coded. Tags above are replaced using vas.sh function based on bob version. see cmd_build_helm().
+  # NOTE: Information from here is used by _auth-proxy-helpers.tpl for example version number
+  ericsecoauthsap:
+    productName: Authorization Proxy OAuth2 SAP Image
+    productNumber: CXU 101 0039
+    registry: armdocker.rnd.ericsson.se
+    repoPath: proj-common-assets-cd-released/security
+    name: eric-sec-authorization-proxy-oauth2-sap
+    tag: '1.38.0-7'
+  ericsecoauthproxy:
+    productName: Authorization Proxy OAuth2 Main Image
+    productNumber: CXU 101 0038
+    registry: armdocker.rnd.ericsson.se
+    repoPath: proj-common-assets-cd-released/security
+    name: eric-sec-authorization-proxy-oauth2
+    tag: '1.38.0-7'

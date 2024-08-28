@@ -1,0 +1,4 @@
+[
+      { "faultName": "test1", "code": 10001 },
+      { "faultName": "test2", "code": 10002 }
+]

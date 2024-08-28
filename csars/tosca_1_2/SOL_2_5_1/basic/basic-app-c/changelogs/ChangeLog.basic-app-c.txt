@@ -1,0 +1,10 @@
+1.0.3
+- Add ChangeLog.txt and License file
+1.0.4
+- Changed "name" field value in tosca.policies.nfv.ScalingAspects to not match scaling aspect name
+1.0.5
+- Added values.schema.json to busybox-simple-chart
+1.0.6
+- Removed topology_template, added multiple helper files
+1.0.7
+- Changed versions of charts

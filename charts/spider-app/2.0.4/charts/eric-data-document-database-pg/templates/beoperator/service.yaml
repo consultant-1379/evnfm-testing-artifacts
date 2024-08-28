@@ -1,0 +1,17 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels: {{- include "eric-data-document-database-pg.labels" . | nindent 4 }}
+  annotations: {{- include "eric-data-document-database-pg.annotations" . | nindent 4 }}
+  name: {{ template "eric-data-document-database-pg.name" . }}-be
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: {{ template "eric-data-document-database-pg.name" . }}-beoperator
+{{- end }}

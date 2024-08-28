@@ -1,0 +1,52 @@
+{{- if .Values.helmtest.enabled -}}
+{{- $g := fromJson (include "eric-pm-bulk-reporter.global" .) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-pm-bulk-reporter.name" . }}-helmtest-config
+  labels: {{- include "eric-pm-bulk-reporter.labels" . | nindent 4 }}
+  annotations: {{- include "eric-pm-bulk-reporter.annotations" . | nindent 4 }}
+data:
+  helmtest.sh: |-
+    #!/bin/bash
+
+    
+    checkKubectlRun=$(/kubectl get pods -l app={{ include "eric-pm-bulk-reporter.name" . }} 2>&1 | sed "s/'//g" |sed 's/"//g')  
+    echo $checkKubectlRun | grep -q 'cannot list resource pods in API group'
+    ec=$?
+    if [ $ec -ne 0 ]; then
+      countPods=$(/usr/bin/kubectl get pods -l app={{ include "eric-pm-bulk-reporter.name" . }} -o jsonpath='{.items[*].metadata.name}' | wc -l 2>&1 )
+      total=$countPods
+    fi
+    current=0; failure=0;
+
+    for ((i=0; i<$countPods; i++))
+    do
+      current=$(($current + 1))
+      for ((j=0; j<=3; j++)) # Status has only 4 conditions, so 0-3 is enough
+      do
+        type=$(/usr/bin/kubectl get pods --selector=app={{ include "eric-pm-bulk-reporter.name" . }} -o jsonpath="{.items[$i].status.conditions[$j].type}")
+        if [[ $type == "Ready" ]];
+        then
+           break
+           status=$(/usr/bin/kubectl get pods --selector=app={{ include "eric-pm-bulk-reporter.name" . }} -o jsonpath="{.items[$i].status.conditions[$j].status}")
+           POD=$(/usr/bin/kubectl get pods --selector=app={{ include "eric-pm-bulk-reporter.name" . }} . }} -o jsonpath="{.items[$i].metadata.name}")
+           if [[ $status == "True" ]];
+           then
+             echo "$(date +'%Y-%m-%d %H:%M:%S'):[$current/$total] Pod $POD in ready state."
+           else
+             failure=$(($failure + 1))
+             echo "$(date +'%Y-%m-%d %H:%M:%S'):[$current/$total] Pod $POD not in ready state. Pod state:$(/usr/bin/kubectl get pods $POD | grep -v "NAME ")"
+           fi
+         fi
+      done
+    done
+    success=$(($total - $failure))
+    echo  "Test result - tests=$total success=$success failure=$failure"
+    sleep 10s
+    if [[ $failure -ne 0  ]];
+    then
+      exit 1
+    fi
+    
+{{- end }}    

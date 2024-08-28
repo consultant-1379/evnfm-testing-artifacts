@@ -1,0 +1,1 @@
+{{- include "eric-ctrl-bro.hkln.manifests" (dict "shh" . "top" .) -}}

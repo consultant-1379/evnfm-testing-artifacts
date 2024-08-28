@@ -1,0 +1,25 @@
+1.0.42
+- Add ChangeLog.txt and License file
+1.0.43
+- Updated CCVP, Scale and Termination order for packages
+1.0.44
+- Changed "name" field value in tosca.policies.nfv.ScalingAspects to not match scaling aspect name
+1.0.45
+- rollback Scale and Termination order for packages
+1.0.46
+- diversified rollback patterns
+- removed specific rollback pattern to legacy package so that default one is used
+1.0.47
+- update TOSCA-Meta-File-Version for tosca 1.3 packages
+1.0.48
+- add downgrade policy to legacy-a package (multi-chart-477c-aab3-2b04e6a383)
+1.0.49
+- Remove usage of deprecated com.ericsson.sec.tls/v1alpha1, siptls.sec.ericsson.com/v1alpha1
+1.0.50
+- Changed versions of charts
+- Added eric-data-document-database-pg to spider-app
+1.0.51
+- Disabled by default eric-data-document-database
+- Disabled PVCs for eric-data-document-database and influxdb
+1.0.52
+- Updated eric-pm-bulk-reporter to use replicaCount from values, in order to support Scale

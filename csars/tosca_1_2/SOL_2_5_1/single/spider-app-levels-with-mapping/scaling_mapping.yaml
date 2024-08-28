@@ -1,0 +1,6 @@
+eric-pm-bulk-reporter:
+   Auto-Scaling-MinReplicas-Name: "eric-pm-bulk-reporter.autoscaling.minReplicas"
+   Auto-Scaling-MaxReplicas-Name: "eric-pm-bulk-reporter.autoscaling.maxReplicas"
+   Scaling-Parameter-Name: "eric-pm-bulk-reporter.replicaCount"
+   Auto-Scaling-Enabled: "Search-Engine.autoscaling.engine.enabled"
+   Mciop-Name: "helm_package"

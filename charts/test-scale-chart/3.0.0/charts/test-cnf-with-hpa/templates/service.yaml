@@ -1,0 +1,28 @@
+{{- if .Values.service.useK8sNetwork }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "test-cnf-with-hpa.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "test-cnf-with-hpa.name" . }}
+    helm.sh/chart: {{ include "test-cnf-with-hpa.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- if .Values.service.annotations.addressPoolName }}
+  annotations:
+    metallb.universe.tf/address-pool: {{ .Values.service.annotations.addressPoolName | quote }}
+{{ end }}
+spec:
+{{- if .Values.service.loadBalancerIP }}
+  loadBalancerIP: { { .Values.service.loadBalancerIP | quote } }
+{{- end }}
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "test-cnf-with-hpa.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

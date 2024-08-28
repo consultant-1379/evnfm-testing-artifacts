@@ -1,0 +1,17 @@
+productName: Backup and Restore Orchestrator
+productNumber: CXC 201 2182
+images:
+  backupAndRestore:
+    productName: Backup and Restore Orchestrator
+    productNumber: CXC 201 2181
+    registry: armdocker.rnd.ericsson.se
+    repoPath: proj-adp-eric-ctrl-bro-drop
+    name: eric-ctrl-bro
+    tag: 9.1.0-32
+  hooklauncher:
+    productName: eric-ctrl-bro hooklauncher
+    productNumber: CXU 101 1837
+    registry: armdocker.rnd.ericsson.se
+    repoPath: proj-adp-eric-ctrl-bro-drop
+    name: eric-ctrl-bro-hooklauncher
+    tag: 9.1.0-32

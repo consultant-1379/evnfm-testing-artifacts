@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "pm-testapp.fullname" . }}
+  labels:
+    app: {{ template "pm-testapp.name" . }}
+    app.kubernetes.io/instance : {{ .Release.Name }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "pm-testapp.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "pm-testapp.name" . }}
+        release: {{ .Release.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- if .Values.global.pullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.global.pullSecret }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.global.registry.url}}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}

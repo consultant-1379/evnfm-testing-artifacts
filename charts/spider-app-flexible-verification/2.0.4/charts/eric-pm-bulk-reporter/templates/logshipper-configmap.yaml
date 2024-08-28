@@ -1,0 +1,3 @@
+{{- if (eq "true" (include "eric-pm-bulk-reporter.logShipperEnabled" .)) }}
+  {{- include "eric-log-shipper-sidecar.logshipper-sidecar-configmap" . }}
+{{- end }}

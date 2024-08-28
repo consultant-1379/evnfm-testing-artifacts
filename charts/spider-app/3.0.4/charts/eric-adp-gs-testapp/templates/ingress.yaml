@@ -1,0 +1,38 @@
+{{/* vim: set filetype=mustache: */}}
+{{- if .Values.ingress.enabled -}}
+{{- $releaseName := .Release.Name -}}
+{{- $serviceName := include "eric-adp-gs-testapp.name" . }}
+{{- $servicePort := .Values.service.servicePort -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+{{- if .Values.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.ingress.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ template "eric-adp-gs-testapp.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: "{{ .Values.name }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  name: {{ template "eric-adp-gs-testapp.name" . }}
+spec:
+  rules:
+  {{- range .Values.ingress.hosts }}
+    - host: {{ . }}
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ $serviceName }}
+              port:
+                number: {{ $servicePort }}
+  {{- end -}}
+{{- if .Values.ingress.tls }}
+  tls:
+{{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end -}}

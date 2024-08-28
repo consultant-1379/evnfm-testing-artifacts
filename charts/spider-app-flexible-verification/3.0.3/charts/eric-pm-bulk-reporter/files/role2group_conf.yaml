@@ -1,0 +1,17 @@
+## Define the List of Roles and corresponding Linux File System Groups
+## Structure the Role and File System Group information as <Role>:<FileSystemGroup>
+## FileSystemGroup can be adp-pm-br-users or adp-pm-br-core
+## adp-pm-users has ReadOnly(R--) access on ROP File Location
+## adp-pm-core has ReadWriteExecute(RWX) access on ROP File Location
+{{ range splitList "," .Values.userConfig.ldap.rolesConfig.readOnlyGroup}}
+{{- . -}}:adp-pm-users
+{{ end }}
+{{- range splitList "," .Values.userConfig.ldap.rolesConfig.readWriteGroup}}
+{{- . -}}:adp-pm-core
+{{ end }}
+
+
+
+
+
+

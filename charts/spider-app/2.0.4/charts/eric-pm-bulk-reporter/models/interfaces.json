@@ -1,0 +1,170 @@
+{
+    "metadata": {
+      "serviceHelmChartName": "eric-pm-bulk-reporter",
+      "usedSchemaVersion": "1.0.0",
+      "fileVersion": "2.0.0",
+      "dateEdited": "2023-10-26"
+    },
+    "interfaceImpls": [
+      {
+        "id": "IMPL.ADP.PMBR.IF.MGMT.REST",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-bulk-reporter",
+        "provides": {
+          "netIf": [
+            {
+              "id": "IF.ADP.PMBR.MGMT.REST.V6",
+              "description": "A REST interface provided by PMBR towards applications to configure PM Jobs, Threshold Jobs, PM Groups and Measurement Types",
+              "specVer": "6.4.0",
+              "type": "HttpJson",
+              "setup": "direct",
+              "maturity": "stable",
+              "scope": "clusterInternal"
+            }
+          ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.HELM_VALUES",
+        "provides": {
+          "dataIf": [
+            {
+              "id": "IF.ADP.PMBR.HELM_VALUES_SCHEMA.V1",
+              "description": "PM Bulk Reporter, Helm Values Model Schema",
+              "specVer": "1.0.0",
+              "type": "HelmValues",
+              "scope": "clusterExternal"
+            }
+          ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_PM_IF_PROM_PROMQL",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-bulk-reporter",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.PM.PROM.PROMQL.V1",
+                "specVer": "1.0.0",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+          ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_PM_IF_PROM_SCRAPING",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-bulk-reporter",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.PM.PROM.SCRAPING.V0",
+                "specVer": "0.0.4",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+          ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_CMM_IF_CM_REST",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-bulk-reporter",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.CMM.CM.REST.V1",
+                "specVer": "1.16",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+           ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_ASIH_IF_SYSTEMINFO_REST",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-bulk-reporter",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.ASIH.SYSTEMINFO.REST.V1",
+                "specVer": "1.0.0",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+           ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_OSMN_IF_S3_REST",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-bulk-reporter",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.OSMN.S3.REST.V1",
+                "specVer": "1.0.0",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+           ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_AH_IF_FI_REST",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-alarm-reporter",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.AH.FI.REST.V1",
+                "specVer": "1.0.0",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+           ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_IAM_IF_LDAP_AUTH_REST",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-sftp",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.IAM.LDAP.AUTH.REST.V1",
+                "specVer": "1.0.0",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+           ]
+        }
+      },
+      {
+        "id": "IMPL.ADP.PMBR.USES_KM_IF_SECRETSTORAGE_REST",
+        "pod": "eric-pm-bulk-reporter",
+        "container": "eric-pm-sftp",
+        "uses": {
+          "netIf": [
+              {
+                "id": "IF.ADP.KM.SECRETSTORAGE.REST.V1",
+                "specVer": "1.0.0",
+                "duringPhases": [
+                  "runtime"
+                ]
+              }
+           ]
+        }
+      } 
+    ]
+  }

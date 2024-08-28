@@ -1,0 +1,24 @@
+{{- $g := fromJson (include "eric-pm-bulk-reporter.global" .) -}}
+{{- if and $g.networkPolicy .Values.networkPolicy -}}
+{{- if and $g.networkPolicy.enabled .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ template "eric-pm-bulk-reporter.name" . }}-sftp-external-access
+  labels: {{- include "eric-pm-bulk-reporter.labels" . | nindent 4 }}
+  annotations: {{- include "eric-pm-bulk-reporter.annotations" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "eric-pm-bulk-reporter.name" . }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from: []
+    ports:
+    - port: {{ template "eric-pm-bulk-reporter.sftp-port" . }}
+      protocol: TCP
+    - port: 9096
+      protocol: TCP
+{{- end }}
+{{- end }}

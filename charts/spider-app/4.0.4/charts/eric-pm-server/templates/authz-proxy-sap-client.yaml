@@ -1,0 +1,25 @@
+{{/*
+  Is needed if IAM Server's sip-oauth2 API used for creating SAP client.
+  This resource is optional if sipoauth2.enabled=false
+*/}}
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- if $authorizationProxy.enabled }}
+{{- if include "eric-pm-server.sap-cli-used" . }}
+apiVersion: iam.sec.ericsson.com/v1beta1
+kind: InternalOAuth2Identity
+metadata:
+  # The resource name below works as is.
+  # *If* it is changed, then the same change must be done in
+  # SAP container's env variable IAM_AAPXY_SAP_CLIENT_NAME
+  # (IAM_AAPXY_SAP_CLIENT_NAME has to match with name of this resource).
+  name: {{ template "eric-pm-server.authz-proxy-sap-cli-name" . }}
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations: {{- include "eric-pm-server.annotations" $ | nindent 4 }}
+# Include the sap client certificate specification from Authorization Proxy named template
+spec:
+  {{ include "eric-pm-server.authz-proxy-sap-cli-spec" . | nindent 2 }}
+{{- end }}
+{{- end }}

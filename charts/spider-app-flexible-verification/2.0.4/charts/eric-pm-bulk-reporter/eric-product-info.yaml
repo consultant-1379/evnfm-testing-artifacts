@@ -1,0 +1,45 @@
+productName: PM Bulk Reporter HELM
+productNumber: CXC 201 1604
+images:
+  eric-pm-bulk-reporter:
+    productName: PM Bulk Reporter IMAGE
+    productNumber: CXC 201 1605
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-bulk-reporter
+    tag: '10.2.0-7'
+  eric-pm-alarm-reporter:
+    productName: PM Bulk Reporter Alarm IMAGE
+    productNumber: CXC 201 2065
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-alarm-reporter
+    tag: '10.2.0-7'
+  eric-pm-sftp:
+    productName: PM Bulk Reporter SFTP IMAGE
+    productNumber: CXC 201 1606
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-sftp
+    tag: '10.2.0-7'
+  eric-pm-br-initcontainer:
+    productName: PM Bulk Reporter Initcontainer IMAGE
+    productNumber: CXC 201 2953
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-br-initcontainer
+    tag: '10.2.0-7'
+  helmtest:
+    productName: PM Bulk Reporter helm test IMAGE
+    productNumber: CXU 101 1751
+    registry: armdocker.rnd.ericsson.se
+    repoPath: 'proj-common-assets-cd/monitoring/pm'
+    name: eric-pm-br-helmtest
+    tag: '10.2.0-7'
+  hooklauncher:
+    productName: Smart Helm Hook Image
+    productNumber: CXU 101 1909
+    registry: armdocker.rnd.ericsson.se
+    repoPath: proj-adp-shh-released
+    name: eric-lcm-smart-helm-hooks-hooklauncher
+    tag: '2.7.0-7'

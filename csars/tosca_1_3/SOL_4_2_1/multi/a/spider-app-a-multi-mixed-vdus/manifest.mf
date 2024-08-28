@@ -1,0 +1,6 @@
+metadata:
+vnf_product_name: Multichart-Sample-rel4
+vnf_provider_id: Ericsson
+vnf_package_version: 0.0.2
+vnf_release_date_time: 2022-05-05T13:28:57Z
+

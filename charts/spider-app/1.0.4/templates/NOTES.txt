@@ -1,0 +1,2 @@
+ADP Test application {{ .Chart.Version }}
+

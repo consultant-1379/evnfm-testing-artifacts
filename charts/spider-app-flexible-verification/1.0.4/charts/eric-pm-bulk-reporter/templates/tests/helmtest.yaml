@@ -1,0 +1,92 @@
+{{- if .Values.helmtest.enabled -}}
+{{- $g := fromJson (include "eric-pm-bulk-reporter.global" .) -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ template "eric-pm-bulk-reporter.name" . }}-helmtest
+  labels: {{- include "eric-pm-bulk-reporter.labels" . | nindent 4 }}
+  annotations:
+{{- $hookAnn := dict -}}
+    {{- $_ := set $hookAnn "helm.sh/hook" "test" -}}
+    {{- $_ := set $hookAnn "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" -}}
+    {{- $commonAnn := include "eric-pm-bulk-reporter.annotations" . | fromYaml }}
+    {{- include "eric-pm-bulk-reporter.mergeAnnotations" (dict "location" .Template.Name "sources" (list $commonAnn $hookAnn)) | trim | nindent 4 }}    
+spec:
+  restartPolicy: Never
+  {{- if .Capabilities.APIVersions.Has "v1/ServiceAccount" }}
+  serviceAccount: ""
+  {{- end }}
+  serviceAccountName: {{ include "eric-pm-bulk-reporter.helmtest.serviceAccountName" . }}
+  securityContext:
+    fsGroup: {{ template "eric-pm-bulk-reporter.fsGroup.coordinated" . }}
+    {{- include "eric-pm-bulk-reporter.podSeccompProfile" . | indent 8 }}
+    {{- include "eric-pm-bulk-reporter.supplementalGroups" . | nindent 4 }}
+{{- with .Values.affinity }}
+  affinity: {{ toYaml . | nindent 8 }}
+    {{- end }}
+{{- if include "eric-pm-bulk-reporter.topologySpreadConstraints" . }}
+  topologySpreadConstraints: {{- (include "eric-pm-bulk-reporter.topologySpreadConstraints" .) | nindent 8}}
+{{- end }}
+  {{- if .Values.podPriority.helmtest.priorityClassName }}
+  priorityClassName: {{ .Values.podPriority.helmtest.priorityClassName | quote }}
+  {{- end }}
+{{- if include "eric-pm-bulk-reporter.pullSecrets" . }}
+  imagePullSecrets:
+  - name: {{ template "eric-pm-bulk-reporter.pullSecrets" . }}
+{{- end }}
+{{- if (include "eric-pm-bulk-reporter.merge-tolerations" (dict "root" . "podbasename" "eric-pm-bulk-reporter")) }}
+  tolerations: {{ include "eric-pm-bulk-reporter.merge-tolerations" (dict "root" . "podbasename" "eric-pm-bulk-reporter") | nindent 8 }}
+{{- end }}
+  containers:
+    - name: helmtest
+      image: {{ template "eric-pm-bulk-reporter.imagePath" (merge (dict "imageName" "helmtest") .) }}
+      imagePullPolicy: {{ required "A valid .Values.imageCredentials.imagePullPolicy entry is required!" .Values.imageCredentials.pullPolicy }}
+      env:
+      - name: TZ
+        value: {{ $g.timezone | default "UTC" | quote }}
+      args:
+        - /tests/helmtest.sh
+      resources:
+        limits:
+          {{- if .Values.resources.helmtest.limits.cpu }}
+          cpu: {{ .Values.resources.helmtest.limits.cpu | quote }}
+          {{- end }}
+          {{- if .Values.resources.helmtest.limits.memory }}
+          memory: {{ .Values.resources.helmtest.limits.memory | quote }}
+          {{- end }}
+          {{- if index .Values.resources.helmtest.limits "ephemeral-storage" }}
+          ephemeral-storage: {{ index .Values.resources.helmtest.limits "ephemeral-storage" | quote }}
+          {{- end }}
+        requests:
+          {{- if .Values.resources.helmtest.requests.cpu }}
+          cpu: {{ .Values.resources.helmtest.requests.cpu | quote }}
+          {{- end }}
+          {{- if .Values.resources.helmtest.requests.memory }}
+          memory: {{ .Values.resources.helmtest.requests.memory | quote }}
+          {{- end }}
+          {{- if index .Values.resources.helmtest.requests "ephemeral-storage" }}
+          ephemeral-storage: {{ index .Values.resources.helmtest.requests "ephemeral-storage" | quote }}
+          {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        privileged: false
+      volumeMounts:
+        - name: empty
+          mountPath: /tmp/logs
+        - name: userfolder
+          mountPath: /userfolder
+        - name: helmtest-config
+          mountPath: /tests
+
+  volumes:
+    - name: empty
+      emptyDir: {}
+    - name: userfolder
+      emptyDir: {}
+    - name: helmtest-config
+      configMap:
+        name: {{ template "eric-pm-bulk-reporter.name" . }}-helmtest-config
+        defaultMode: 0755
+{{- end }}        

@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "eric-pm-testapp-controller.name" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "eric-pm-testapp-controller.name" . }}
+    app.kubernetes.io/version: {{ include "eric-pm-testapp-controller.version" . }}
+    app.kubernetes.io/instance : {{ .Release.Name }}
+{{ include "eric-pm-testapp-controller.helm-annotations" . | indent 2 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "eric-pm-testapp-controller.name" . }}
+      app.kubernetes.io/instance : {{ .Release.Name }}
+  strategy:
+    type: {{ .Values.updateStrategy.type }}
+    {{- if and (eq .Values.updateStrategy.type "RollingUpdate") .Values.updateStrategy.rollingUpdate }}
+    rollingUpdate:
+{{ toYaml .Values.updateStrategy.rollingUpdate | indent 6 }}
+    {{- end }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "eric-pm-testapp-controller.name" . }}
+        app.kubernetes.io/version: {{ include "eric-pm-testapp-controller.version" . }}
+        app.kubernetes.io/instance : {{ .Release.Name }}
+    spec:
+      {{- if include "eric-pm-testapp-controller.pullSecrets" . }}
+      imagePullSecrets:
+        - name: {{ template "eric-pm-testapp-controller.pullSecrets" . }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          env:
+          - name: PROMETHEUS_SVC_NAME
+            value: "{{ .Values.prometheus.serviceName }}"
+          - name: PROMETHEUS_SVC_PORT
+            value: "{{ .Values.prometheus.servicePort }}"
+          - name: INFLUXDB_SVC_NAME
+            value: "{{ .Values.influxdb.serviceName }}"
+          - name: INFLUXDB_SVC_PORT
+            value: "{{ .Values.influxdb.servicePort }}"
+          - name: KUBERNETES_NAMESPACE
+            value: "{{ .Release.Namespace }}"
+          - name: PM_TEST_APP_SVC_NAME
+            value: "{{ .Release.Name }}-{{ .Values.pmtestapp.serviceName }}"
+          - name: PM_TEST_APP_SVC_PORT
+            value: "{{ .Values.pmtestapp.servicePort }}"
+          image: {{ template "eric-pm-testapp-controller.registryUrl" . }}/{{ .Values.imageCredentials.repoPath }}/{{ .Values.images.pmtestappmonitor.name }}:{{ .Values.images.pmtestappmonitor.tag }}
+          imagePullPolicy: {{ .Values.imageCredentials.pullPolicy }}
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - 'python -u ./controller.py'
+          readinessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - 'python -u ./controller.py'
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          resources:
+          {{- toYaml .Values.resources.pmtestappmonitor | nindent 12 }}

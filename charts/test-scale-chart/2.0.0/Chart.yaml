@@ -1,0 +1,18 @@
+apiVersion: v2
+appVersion: "1.1"
+description: A Helm chart for Kubernetes
+name: test-scale-chart
+version: 2.0.0
+dependencies:
+  - name: test-cnf-with-hpa
+    alias: vnfc1
+    version: 0.1.4
+  - name: test-cnf
+    alias: vnfc2
+    version: 0.1.1
+  - name: test-cnf
+    alias: vnfc3
+    version: 0.1.1
+  - name: test-cnf
+    alias: vnfc4
+    version: 0.1.1

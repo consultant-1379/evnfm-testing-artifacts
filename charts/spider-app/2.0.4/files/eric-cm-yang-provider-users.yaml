@@ -1,0 +1,7 @@
+users:
+ - user: user1
+   groups: [system-admin, system-security-admin]
+   encryptedPass: $1$qakjcMI2$gDUzkugMKYry62maHRe.F/
+ - user: user2
+   groups: [system-security-admin]
+   encryptedPass: $1$TDSafeHE$fQB1dAarY6IhPk1L26pTe/

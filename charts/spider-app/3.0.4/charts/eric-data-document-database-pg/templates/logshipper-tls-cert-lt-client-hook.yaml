@@ -1,0 +1,26 @@
+{{/*
+Logshipper logtransformer client certificate for the following hooks:
+  - pre-install
+  - pre-rollback, post-rollback
+  - pre-upgrade, post-upgrade
+  - post-delete
+*/}}
+{{- if (eq (include "eric-data-document-database-pg.hooklog" .) "true") }}
+  {{- $logshipperValues := fromJson (include "eric-data-document-database-pg.ls-values" .) -}}
+  {{- $logshipperCopied := deepCopy . -}}
+  {{- $logshipperMerged := (mergeOverwrite $logshipperCopied $logshipperValues) -}}
+  {{- $helmHooks := dict -}}
+  {{- $_ := set $helmHooks "helm.sh/hook" "pre-install,pre-rollback,pre-upgrade" -}}
+  {{- $_ := set $helmHooks "helm.sh/hook-delete-policy" "before-hook-creation" -}}
+  {{- $_ := set $helmHooks "helm.sh/hook-weight" "-202" -}}
+  {{- $mergedAnn := include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $helmHooks)) | fromYaml -}}
+
+  {{- $hookContext := dict -}}
+  {{- $_ := set $hookContext "root" $logshipperMerged -}}
+  {{- $_ := set $hookContext "customLogshipperAnnotations" $mergedAnn -}}
+  {{- if eq (include "eric-data-document-database-pg.logStatic" .) "true" }}
+  {{- include "eric-data-document-database-pg.logshipper-tls-cert-lt-client-for-hooks" $hookContext }}
+  {{- else }}
+  {{- include "eric-log-shipper-sidecar.logshipper-tls-cert-lt-client-for-hooks" $hookContext }}
+  {{- end }}
+{{- end }}

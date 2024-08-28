@@ -1,0 +1,29 @@
+license: License.txt
+include_additional_values: false
+sol_version: 2.5.1
+groupid: tosca_1_2.SOL_2_5_1.multi.a
+
+buildConfigurations:
+  - name: no-signatures
+    classifier: null
+  - name: signed-option1
+    classifier: null
+    signatures:
+      option1:
+        key: signing.key
+        certificate: bundle.cert
+  - name: signed-option2
+    classifier: null
+    signatures:
+      option2:
+        key: signing.key
+        certificate: bundle.cert
+  - name: signed-option1+2
+    classifier: null
+    signatures:
+      option1:
+        key: signing.key
+        certificate: bundle.cert
+      option2:
+        key: signing.key
+        certificate: bundle.cert

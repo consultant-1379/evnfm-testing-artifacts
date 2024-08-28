@@ -1,0 +1,62 @@
+repositories:
+    # --- Charts ---
+  - name: spider-app
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/spider-app
+  - name: test-scale-chart
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/test-scale-chart
+  - name: spider-app-flexible-verification
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/spider-app-flexible-verification
+  - name: spider-app-label-verification
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/spider-app-label-verification
+  - name: test-scale-chart-complexity
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/test-scale-chart-complexity
+  - name: busybox-simple-chart
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart
+  - name: busybox-simple-chart-a
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-a
+  - name: busybox-simple-chart-b
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-b
+  - name: busybox-simple-chart-c
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-c
+  - name: busybox-simple-chart-d
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-d
+  - name: busybox-simple-chart-e
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-e
+  - name: busybox-simple-chart-f
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-f
+  - name: busybox-simple-chart-g
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-g
+  - name: busybox-simple-chart-h
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/busybox-simple-chart-h
+
+    # --- Crds ---
+  - name: eric-sec-sip-tls-crd
+    url: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-sec-sip-tls-crd
+  - name: eric-sec-certm-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-sec-certm-crd
+  - name: scale-crd
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/scale-crd
+  - name: eric-data-document-database-pg-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-data-document-database-pg-crd
+  - name: eric-data-kvdb-ag-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-data-kvdb-ag-crd
+  - name: eric-data-message-bus-kf-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-data-message-bus-kf-crd
+  - name: eric-lm-combined-server-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-lm-combined-server-crd
+  - name: eric-mesh-controller-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-mesh-controller-crd
+  - name: eric-tm-ingress-controller-cr-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-tm-ingress-controller-cr-crd
+  - name: eric-sec-access-mgmt-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-sec-access-mgmt-crd
+  - name: eric-tm-senp-infra-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-tm-senp-infra-crd
+  - name: eric-data-wide-column-database-cd-crd
+    url: https://arm.sero.gic.ericsson.se/artifactory/proj-adp-gs-all-helm/eric-data-wide-column-database-cd-crd
+  - name: dummy-crd-a
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/dummy-crd-a
+  - name: dummy-crd-b
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/dummy-crd-b
+  - name: dummy-crd-c
+    url: https://arm.seli.gic.ericsson.se/artifactory/proj-eo-evnfm-helm/am-csar-charts/dummy-crd-c

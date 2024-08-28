@@ -1,0 +1,59 @@
+apiVersion: v2
+description: ADP Staging test application
+name: spider-app-flexible-verification
+version: 4.0.3
+dependencies:
+  - condition: influxdb-service.enabled
+    name: influxdb
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm/
+    tags:
+      - all
+      - logging
+      - cm
+      - pm
+      - km
+      - alarm
+      - ddc
+    version: 4.11.0
+  - condition: eric-adp-gs-testapp.enabled
+    name: eric-adp-gs-testapp
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm
+    tags:
+      - all
+      - geode
+      - alarm
+      - cassandra
+      - consul
+      - kafka
+      - postgres
+      - pm
+      - idam
+    version: 0.0.1-142
+  - condition: eric-pm-server.enabled
+    name: eric-pm-server
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-gs-all-helm
+    tags:
+      - all
+      - pm
+    version: 11.2.0-9
+  - condition: pm-testapp.enabled
+    name: pm-testapp
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm/
+    tags:
+      - all
+      - pm
+    version: 1.0.1-1
+  - condition: eric-pm-testapp-controller.enabled
+    name: eric-pm-testapp-controller
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-spider-team-helm/
+    tags:
+      - all
+      - pm
+    version: 0.4.0-7
+  - condition: eric-pm-bulk-reporter.enabled
+    name: eric-pm-bulk-reporter
+    repository: https://arm.rnd.ki.sw.ericsson.se/artifactory/proj-adp-gs-all-helm/
+    tags:
+      - all
+      - pm
+    version: 10.2.0-7

@@ -1,0 +1,23 @@
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- if $authorizationProxy.enabled }}
+{{- $globals := fromJson (include "eric-pm-server.authz-proxy-global" .) -}}
+{{- if $globals.security.tls.enabled }}
+{{- if include "eric-pm-server.sap-cli-used" . }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  # The following name pattern is recommended, but not mandatory.
+  # Any unique name is sufficient.
+  name: {{ template "eric-pm-server.name" . }}-iam-sap-client-cert
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations: {{- include "eric-pm-server.annotations" $ | nindent 4 }}
+
+spec:
+# Include the sap client certificate specification from authorization proxy named template
+{{ include "eric-pm-server.authz-proxy-sap-cli-cert-spec" . | indent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

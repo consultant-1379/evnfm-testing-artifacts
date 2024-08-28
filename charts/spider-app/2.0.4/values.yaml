@@ -1,0 +1,568 @@
+eric-adp-gs-testapp:
+  geode:
+    enabled: false
+  ingress:
+    enabled: false
+    hosts:
+    - <MANDATORY>
+  postgresql:
+    hostname: eric-adp-gs-testapp-db-pg
+    port: 5432
+    database: adp_gs_gstestapp
+    # TODO - ADPE2ECICD-2052, replace "user" and "password" with "kubernetesSecretName: spider-gs-testapp-db-secret"
+    user: gstestapp
+    password: gstestapppw
+  snmpAlarmProvider:
+    hostname: <MANDATORY>
+    port: 162
+  service:
+    replicaCount: 1
+  tls:
+    dced:
+      enabled: true
+    kms:
+      enabled: true
+eric-adp-gs-testapp-db-pg:
+  persistence:
+    size: 4Gi
+  postgresDatabase: adp_gs_gstestapp
+  credentials:
+    kubernetesSecretName: spider-gs-testapp-db-secrets
+  highAvailability:
+    replicaCount: 3
+eric-fh-alarm-handler-db-pg:
+  persistence:
+    size: 4Gi
+  postgresDatabase: adp_gs_cm
+  credentials:
+    kubernetesSecretName: spider-cm-db-secrets
+  highAvailability:
+    replicaCount: 3
+eric-lm-combined-server-db-pg:
+  persistence:
+    size: 4Gi
+  postgresDatabase: adp_gs_cm
+  credentials:
+    kubernetesSecretName: spider-cm-db-secrets
+  highAvailability:
+    replicaCount: 3
+eric-sec-access-mgmt-db-pg:
+  persistence:
+    size: 4Gi
+  postgresDatabase: adp_gs_cm
+  credentials:
+    kubernetesSecretName: spider-cm-db-secrets
+  highAvailability:
+    replicaCount: 3
+eric-tm-sctp:
+  replicaCount: 2
+  service:
+    type: LoadBalancer
+  misc:
+    actingAsSeparateService: true
+eric-cm-mediator:
+  replicaCount: 1
+  cmm:
+    tls:
+      enabled: true
+      enableClientCert: true
+  backend:
+    hostname: eric-data-document-database-pg
+  cmkey:
+    enable: true
+  credentials:
+    kubernetesSecretName: spider-cm-db-secrets
+    keyForUserId: custom-user
+    keyForUserPw: custom-pwd
+eric-cm-yang-provider:
+  persistentVolumeClaim:
+    enabled: false
+  keyManagement:
+    storeHostKeys: true
+  ldap:
+    enabled: true
+  CMM:
+    host: eric-cm-mediator
+  externaldb:
+    host: eric-data-document-database-pg
+    credentials:
+      kubernetesSecretName: spider-cm-db-secrets
+      keyForUserId: custom-user
+      keyForUserPw: custom-pwd
+  service:
+    cliPort: <MANDATORY>
+    netconfPort: <MANDATORY>
+  userConfig:
+    secretKey: yang-users
+    secretName: eric-cm-yang-provider-users
+eric-data-coordinator-zk:
+  heap: 500M
+  memory: 1Gi
+  persistantVolumeClaim:
+    storage: 1Gi
+    storageClassName: network-block
+  brAgent:
+     enabled: true
+     properties:
+        applicationProperties: |-
+           dczk.agent.id=eric-data-coordinator-zk
+           dczk.agent.scope=stream-data
+           dczk.excluded.paths=/zookeeper,/eric-data-message-bus-kf
+           dczk.agent.restore.type=overwriteall
+           dczk.agent.softwareVersion.type=database
+           dczk.agent.fragment.backup.data.path=/backupdata/backup.txt
+           dczk.agent.download.location=/backupdata/
+eric-data-document-database-pg:
+  persistentVolumeClaim:
+    enabled: false
+    size: 1Gi
+  persistence:
+    size: 1Gi
+  postgresDatabase: adp_gs_cm
+  credentials:
+    kubernetesSecretName: spider-cm-db-secrets
+  highAvailability:
+    replicaCount: 1
+  brAgent:
+    enabled: true
+    backupTypeList:
+      - configuration-data
+eric-data-message-bus-kf:
+  livenessProbeInitialDelaySeconds: 180
+  persistentVolumeClaim:
+    storage: 5Gi
+eric-data-search-engine:
+  replicas:
+    ingest: 2
+  persistence:
+    storageClass: network-block
+  jvmHeap:
+    ingest: "1024m"
+    master: "1024m"
+    data: "2048m"
+  resources:
+    ingest:
+      limits:
+        memory: "2Gi"
+      requests:
+        memory: "2Gi"
+    master:
+      limits:
+        memory: "2Gi"
+      requests:
+        memory: "2Gi"
+    data:
+      limits:
+        memory: "4Gi"
+      requests:
+        memory: "4Gi"
+  security:
+    tls:
+      bro:
+        enabled: false
+  logLevel: "info"
+eric-data-visualizer-gf:
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - access: proxy
+        isDefault: true
+        name: Prometheus
+        type: prometheus
+        url: http://eric-pm-server:9090
+  deploymentStrategy: Recreate
+  ingress:
+    enabled: true
+    hosts:
+    - <MANDATORY>
+  persistence:
+    accessModes:
+    - ReadWriteOnce
+    enabled: true
+    size: 1Gi
+    storageClassName: network-block
+eric-data-search-engine-curator:
+  cronjob:
+    curator:
+      schedule: "*/2 * * * *"
+  dryRun: false
+  actions: |
+    1:
+      action: delete_indices
+      description: Remove kubelog older than 2 days
+      options:
+        disable_action: False
+        ignore_empty_list: true
+      filters:
+      - filtertype: pattern
+        kind: regex
+        value: '^(kubelog|helmlog).*$'
+      - filtertype: age
+        source: name
+        direction: older
+        timestring: '%Y.%m.%d'
+        unit: days
+        unit_count: 2
+eric-data-wide-column-database-cd:
+  persistence:
+    storageClass: network-block
+eric-dst-query:
+  ingress:
+    enabled: false
+eric-enabl-dynamic-infrastructure-cs:
+  Clients:
+    Agents:
+    - 1
+    - 2
+    - 3
+    NumClientAgents: 1
+  Servers:
+    Agents:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    NumServerAgents: 3
+  persistentVolumeClaim:
+    storageClassName: network-block
+eric-fh-alarm-handler:
+  alarmhandler:
+    debug: server
+    configmap:
+      faultmappings: eric-fh-alarm-handler-faultmappings
+    jobs:
+      createAHTopics: true
+      overrideTopicConfig: true
+  backend:
+    dbname: adp_gs_cm
+    hostname: eric-fh-alarm-handler-db-pg
+  credentials:
+    kubernetesSecretName: spider-cm-db-secrets
+    keyForUserId: custom-user
+    keyForUserPw: custom-pwd
+  dataCoordinator:
+    hostname: eric-data-coordinator-zk
+    port: '2181'
+  imageCredentials:
+    kafka:
+      repoPath: "proj-adp-message-bus-kf-drop"
+  images:
+    kafka:
+      name: eric-data-message-bus-kf
+      tag: 1.8.0-57
+  kafka:
+    hostname: eric-data-message-bus-kf
+  replicaCount: 2
+eric-fh-snmp-alarm-provider:
+  ingress:
+    enabled: true
+    snmpAgentPort: 162
+  service:
+    secretName: eric-fh-snmp-alarm-provider
+eric-lcm-container-registry:
+  ingress:
+    enabled: true
+    host: <MANDATORY>
+    tls:
+      enabled: false
+  mysql:
+    volumes:
+      data:
+        storageClass: network-block
+  nginx:
+    tls:
+      enabled: true
+  redis:
+    master:
+      persistence:
+        storageClass: network-block
+  registry:
+    volumes:
+      data:
+        storageClass: network-block
+  updateStrategy:
+    mysql:
+      type: RollingUpdate
+    redis:
+      type: RollingUpdate
+    registry:
+      type: RollingUpdate
+  brAgent:
+    enabled: true
+    backupTypeList:
+    - "container-image-store"
+eric-lcm-helm-chart-registry:
+  ingress:
+    enabled: true
+    host: <MANDATORY>
+  persistentVolumeClaim:
+    size: 1Gi
+    storageClassName: network-block
+  updateStrategy:
+    type: Recreate
+  brAgent:
+    enabled: true
+    backupTypeList:
+    - "helm-chart-store"
+eric-log-shipper:
+  additionalVolumeMounts: "- name: kubelet\n  mountPath: /var/lib/kubelet/pods\n"
+  additionalVolumes: "- name: kubelet\n  hostPath:\n    path: /var/lib/kubelet/pods\n"
+  logshipper:
+    cfgData: |
+     paths:
+     - /var/lib/kubelet/pods/*/*/*/*/log4j.log
+     fields:
+      logplane: kubelog
+     processors:
+     - drop_fields:
+        fields: ["log"]
+  logtransformer:
+    host: eric-log-transformer
+eric-log-transformer:
+  replicaCount: 2
+  resources:
+    limits:
+      memory: 2Gi
+eric-pm-bulk-reporter:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+    servicePort: 9022
+  userConfig:
+    ldap:
+      enabled: false
+    secretKey: users.yaml
+    secretName: pm-br-sftp-users-secret
+  replicaCount: 1
+eric-pm-server:
+  rbac:
+    create: false
+  server:
+    ingress:
+      enabled: true
+      hosts:
+      - <MANDATORY>
+    persistentVolume:
+      enabled: true
+      size: 2Gi
+      storageClass: network-block
+    retention: 1d
+  serverFiles:
+    alerts: ''
+    prometheus.yml: "global:\n  scrape_interval: 10s\n  scrape_timeout: 5s\n  evaluation_interval:\
+      \ 40s\n\nscrape_configs:\n - job_name: 'kubernetes-service-endpoints'\n\n  \
+      \ kubernetes_sd_configs:\n   - role: endpoints\n\n   relabel_configs:\n    \
+      \ - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]\n\
+      \       action: keep\n       regex: true\n     - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]\n\
+      \       action: replace\n       target_label: __scheme__\n       regex: (https?)\n\
+      \     - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]\n\
+      \       action: replace\n       target_label: __metrics_path__\n       regex:\
+      \ (.+)\n     - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]\n\
+      \       action: replace\n       target_label: __address__\n       regex: ([^:]+)(?::\\\
+      d+)?;(\\d+)\n       replacement: $1:$2\n     - action: labelmap\n       regex:\
+      \ __meta_kubernetes_service_label_(.+)\n     - source_labels: [__meta_kubernetes_namespace]\n\
+      \       action: replace\n       target_label: kubernetes_namespace\n     - source_labels:\
+      \ [__meta_kubernetes_service_name]\n       action: replace\n       target_label:\
+      \ kubernetes_name\n"
+    rules: ''
+eric-sec-access-mgmt:
+  ingress:
+    enabled: true
+    hostname: <MANDATORY>
+    tls:
+      enabled: false
+  persistence:
+    dbHost: eric-sec-access-mgmt-db-pg
+    dbName: adp_gs_cm
+    dbPasswdkey: pgpasswd
+    dbUserkey: pguserid
+  statefulset:
+    passwdkey: kcpasswd
+    userkey: kcadminid
+  ldap:
+    realm: oam
+eric-sec-access-mgmt-cred:
+  database:
+    password: cmpw
+    username: cm
+  keycloak:
+    password: keycloak
+    username: keycloak
+eric-sec-key-management:
+  images:
+    ca:
+      enabled: false
+  persistence:
+    type: etcd
+  withSipTls: true
+  logLevel: "debug"
+iam-test-app:
+  iam:
+    namespace: <MANDATORY>
+    port: 8444
+  ingress:
+    enabled: true
+    host: <MANDATORY>
+ldap-test-app:
+  iam:
+    port: 8444
+    realm: oam
+  ldap:
+    secret: eric-sec-ldap-server-creds
+influxdb:
+  persistence:
+    enabled: false
+    size: 1Gi
+  ingress:
+    enabled: false
+  ext:
+    apiAccessHostname: <MANDATORY>
+  service:
+    type: ClusterIP
+key-management-test-app:
+  influxdb:
+    enabled: true
+  withSipTls: true
+pm-testapp:
+  ingress:
+    enabled: false
+    domain: <MANDATORY>
+userConfig:
+  secretKey: users.yaml
+  secretName: pm-br-sftp-users-secret
+eric-sec-sip-tls:
+  logLevel: DEBUG
+eric-sec-ldap-server:
+  replicaCount: 1
+  federation:
+    adminSecret: eric-sec-ldap-server-creds
+    passwdkey: passwd
+  ldap:
+    aum:
+      enabled: true
+  brAgent:
+    enabled: true
+    brLabelValue: "eric-sec-ldap-server"
+    backupTypeList:
+      - database
+eric-odca-diagnostic-data-collector:
+  sftpCredentials:
+    secretName: eric-odca-diagnostic-data-collector-sftp-credentials
+    secretKey: sftp_credentials.json
+  env:
+    sftphost: 10.210.58.134:2222
+    sftpFileLocation: "upload"
+eric-log-test-app:
+  elasticsearch:
+    esIndexDeleteFlag: false
+    esIndexDeleteBeforeDays: 2
+    hostname: eric-data-search-engine
+  log:
+    hostname: eric-log-transformer
+  producer:
+    logPlanes: kubelog
+  service:
+    replicaCount: 2
+eric-tm-ingress-controller-cr:
+  CRDinstalledByUser: true
+  rbac:
+    create: true
+
+eric-lm-combined-server:
+  database:
+    credentials:
+      secretName: spider-cm-db-secrets
+    host: eric-lm-combined-server-db-pg
+    name: adp_gs_cm
+  licenseServerClient:
+    licenseServer:
+      thrift:
+        host: nelssimulator-service
+    licenseDomains:
+      - productType: productType1
+        swltId: swLicenseTargetId1
+        customerId: customerId1
+eric-data-distributed-coordinator-ed:
+   security:
+      etcd:
+         client:
+            clientCertAuth: true
+         certificates:
+            enabled: true
+   brAgent:
+      enabled: true
+      properties:
+           applicationProperties: |-
+              dced.agent.id=eric-data-distributed-coordinator-ed
+              dced.agent.scope=key-value-store
+              dced.agent.softwareVersion.type=database
+eric-sec-admin-user-management:
+  tls:
+    enabled: true
+  log:
+    level: debug
+eric-adp-ss7-db-pg:
+  persistence:
+    size: 4Gi
+  postgresDatabase: adp_ss7
+  credentials:
+    kubernetesSecretName: spider-cm-db-secrets
+  highAvailability:
+    replicaCount: 3
+eric-ss7-with-testapp:
+  replicaCount: 2
+  dbBackendCredentials:
+    host: eric-adp-ss7-db-pg
+    kubernetesSecretName: spider-cm-db-secrets
+global:
+  registry:
+    url: armdocker.rnd.ericsson.se
+    pullSecret: "IfNotPresent"
+  security:
+    tls:
+      enabled: false
+  hosts:
+    bro:
+
+config:
+  nbi:
+    file:
+      enabled: false
+      json:
+        configMap:
+      xml:
+        configMap:
+      script:
+        configMap:
+
+backup-controller:
+  enabled: true
+
+eric-ctrl-bro:
+  persistence:
+    persistentVolumeClaim:
+      size: "1Gi"
+  security:
+    tls:
+      broToAgent:
+        enabled: false
+      rest:
+        enabled: false
+  service:
+    endpoints:
+      broToAgent:
+        tls:
+          enforced: optional
+          verifyClientCertificate: optional
+      restActions:
+        tls:
+          enforced: optional
+bro:
+  ingress:
+    enabled: false
+    tls:
+      enabled: false
+      secretname: eric-bro-tls

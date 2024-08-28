@@ -1,0 +1,6 @@
+*.csar
+*.tgz
+*.tar
+
+# Intellij
+.idea/

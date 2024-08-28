@@ -1,0 +1,24 @@
+---
+global:
+  registry:
+    url: armdocker.rnd.ericsson.se
+  pullSecret: ""
+replicaCount: 1
+server:
+  image:
+    tag: 1.0.0-154
+image:
+  repository: proj_vas/monitoring_test/pm-testapp
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+service:
+  name: pm-testapp
+  type: ClusterIP
+  externalPort: 8080
+  internalPort: 8080
+ingress:
+  enabled: true
+  domain: twins.seli.gic.ericsson.se
+  annotations:
+  tls:
+resources: {}

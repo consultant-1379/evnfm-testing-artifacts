@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.service.name }}
+  labels:
+    app: {{ .Values.service.name }}
+    app.kubernetes.io/instance : {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.service.replicaCount }}
+  selector:
+    matchLabels:
+      service: {{ .Values.service.name }}
+  template:
+    metadata:
+      labels:
+        service: {{ .Values.service.name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- if .Values.global.pullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.global.pullSecret }}
+      {{- end }}
+      initContainers:
+      {{- if .Values.kafka.enabled }}
+      - name: wait-for-kafka-topics-init
+        image: '{{ .Values.global.registry.url }}/{{ .Values.imageCredentials.repoPathKafka }}/{{ .Values.images.initContainers.messagebuskf.name }}:{{ .Values.images.initContainers.messagebuskf.tag }}'
+        imagePullPolicy: {{ .Values.imageCredentials.pullPolicy | quote }}
+        command: ['sh', '-c',
+                  'while true; do
+                      topic_list="$(/usr/bin/kafka-topics --zookeeper {{ template "eric-adp-gs-testapp.dataCoordinator.connect" . }} --list)";
+                      echo "Topic list: $topic_list";
+                      if [[ "$topic_list" == *"{{ .Values.kafka.topic.name }}"* ]]; then
+                          /usr/bin/kafka-topics --zookeeper {{ template "eric-adp-gs-testapp.dataCoordinator.connect" . }} --delete --topic kafkaLoadtest;
+                      fi;
+                      echo "Creating topic {{ .Values.kafka.topic.name }}";
+                      /usr/bin/kafka-topics --zookeeper {{ template "eric-adp-gs-testapp.dataCoordinator.connect" . }} --create --topic {{ .Values.kafka.topic.name }} --partitions {{ .Values.kafka.topic.partitions }} --replication-factor {{ .Values.kafka.topic.replicationFactor }};
+                      if [ $? == 0 ]; then
+                          break;
+                      fi;
+                      echo "Waiting to connect to Kafka";
+                      sleep 5;
+                  done;
+                  /usr/bin/kafka-topics --zookeeper {{ template "eric-adp-gs-testapp.dataCoordinator.connect" . }} --describe --topic {{ .Values.kafka.topic.name }}']
+      {{- end }}
+      containers:
+      - name: eric-adp-gs-testapp
+        env:
+        - name: APP_NAME
+          value: {{ .Values.service.name | quote }}
+        - name: TZ
+          value: Europe/Stockholm
+        - name: GEODE_LOCATOR_SERVICE_NAME
+          value: {{ .Values.geode.locatorServiceName | quote }}
+        - name: GEODE_LOCATOR_SERVICE_PORT
+          value: {{ .Values.geode.locatorServicePort | quote }}
+        - name: GEODE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.users.adpuser.credentialsSecret }}
+              key: username
+        - name: GEODE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.users.adpuser.credentialsSecret }}
+              key: password
+        - name: KAFKA_HOSTNAME
+          value: {{ .Values.kafka.hostname | quote }}
+        - name: KAFKA_SERVICE_PORT
+          value: {{ .Values.kafka.port | quote }}
+        - name: CASSANDRA_HOSTNAME
+          value: {{ .Values.cassandra.hostname | quote }}
+        - name: CASSANDRA_SERVICE_PORT
+          value: {{ .Values.cassandra.port | quote }}
+        - name: AH_FAULT_INDICATION_TOPIC
+          value: {{ .Values.alarmHandler.faultIndicationTopicName | quote }}
+        - name: AH_STATE_INDICATION_TOPIC
+          value: {{ .Values.alarmHandler.stateIndicationTopicName | quote }}
+        - name: AH_SERVICE_NAME
+          value: {{ .Values.alarmHandler.serviceName | quote }}
+        - name: AH_SERVICE_PORT
+          value: {{ .Values.alarmHandler.servicePort | quote }}
+        - name: AH_SERVICE_TIMEOUT
+          value: {{ .Values.alarmHandler.timeoutInSec | quote }}
+        - name: KAFKA_TOPIC
+          value: {{ .Values.kafka.topic.name | quote }}
+        - name: SNMP_ALARM_PROVIDER_HOSTNAME
+          value: {{ .Values.snmpAlarmProvider.hostname | quote }}
+        - name: SNMP_ALARM_PROVIDER_PORT
+          value: {{ .Values.snmpAlarmProvider.port | quote }}
+        - name: SNMP_ALARM_PROVIDER_TIMEOUT_IN_SEC
+          value: {{ .Values.snmpAlarmProvider.timeoutInSec | quote }}
+        - name: SNMP_ALARM_PROVIDER_RETRIES_COUNT
+          value: {{ .Values.snmpAlarmProvider.retryCount | quote }}
+        - name: POSTGRESQL_HOSTNAME
+          value: {{ .Values.postgresql.hostname | quote }}
+        - name: POSTGRESQL_HOSTNAME_REPLICA
+          value: {{ .Values.postgresql.hostnameReplica | quote }}
+        - name: POSTGRESQL_ENABLE_HA
+          value: {{ .Values.postgresql.enableHA | quote }}
+        - name: POSTGRESQL_PORT
+          value: {{ .Values.postgresql.port | quote }}
+        - name: POSTGRESQL_DATABASE
+          value: {{ .Values.postgresql.database | quote }}
+        - name: POSTGRESQL_USER
+          value: {{ .Values.postgresql.user | quote }}
+        - name: POSTGRESQL_PASSWORD
+          value: {{ .Values.postgresql.password | quote }}
+        - name: CONSUL_HOSTNAME
+          value: {{ .Values.consul.serviceName | quote }}
+        - name: CONSUL_PORT
+          value: {{ .Values.consul.servicePort | quote }}
+        - name: CM_SERVICE_NAME
+          value: {{ .Values.cmmediator.serviceName | quote }}
+        - name: CM_PORT
+          value: {{ .Values.cmmediator.port | quote }}
+        - name: PM_SERVICE_NAME
+          value: {{ .Values.pmserver.serviceName | quote }}
+        - name: PM_PORT
+          value: {{ .Values.pmserver.port | quote }}
+        - name: PM_NAMESPACE
+          value: {{ .Values.pmserver.namespace | quote }}
+        - name: SFTP_HOST
+          value: {{ .Values.pmbulkreporter.sftphost | quote }}
+        - name: SFTP_PORT
+          value: {{ .Values.pmbulkreporter.sftpport | quote }}
+        - name: SFTP_USER
+          value: {{ .Values.pmbulkreporter.sftpuser | quote }}
+        - name: SFTP_PASSWD
+          value: {{ .Values.pmbulkreporter.sftppasswd | quote }}
+        - name: BRO_HOSTNAME
+          value: {{ .Values.bro.hostname | quote }}
+        - name: BRO_PORT
+          value: {{ .Values.bro.port | quote }}
+        image: '{{ .Values.global.registry.url }}/{{ .Values.imageCredentials.repository }}/{{ index .Values "images" "eric-adp-gs-testapp" "name" }}:{{ index .Values "images" "eric-adp-gs-testapp" "tag" }}'
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 8080
+            name: http
+        {{- if .Values.debug.enabled }}
+          - containerPort: 8000
+            name: java-debug
+        command: ['java', '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000', '-jar', 'core-module-1.0.jar']
+        {{- end }}
+        {{- if not .Values.debug.enabled }}
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8080
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        {{- end }}

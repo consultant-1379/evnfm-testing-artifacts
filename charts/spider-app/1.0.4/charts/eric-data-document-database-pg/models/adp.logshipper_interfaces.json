@@ -1,0 +1,24 @@
+{
+    "metadata": {
+        "serviceHelmChartName": "eric-data-document-database-pg",
+        "usedSchemaVersion": "1.0.0",
+        "fileVersion": "1.0.0",
+        "dateEdited": "2023-08-31"
+    },
+    "interfaceImpls": [
+        {
+            "id": "IMPL.ADP.DDPG.IF.LOGSTREAM",
+            "uses": {
+                "netIf": [
+                    {
+                        "id": "IF.ADP.LT.LOGSTREAM.LUMBERJACK.V1",
+                        "specVer": "1.0.0",
+                        "duringPhases": [
+                            "runtime"
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

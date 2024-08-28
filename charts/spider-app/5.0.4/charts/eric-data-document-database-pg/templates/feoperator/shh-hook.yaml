@@ -1,0 +1,127 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+{{- if eq (include "eric-data-document-database-pg.isOpMigrationRequired" .) "true" -}}
+{{- $globalValue := fromJson (include "eric-data-document-database-pg.global" .) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-shh-hook
+  labels: {{- include "eric-data-document-database-pg.labels" . | nindent 4 }}
+  annotations:
+    {{- $jobAnn := dict -}}
+    {{- $_ := set $jobAnn "helm.sh/hook" "post-upgrade" -}}
+    {{- $_ := set $jobAnn "helm.sh/hook-delete-policy" "hook-succeeded,before-hook-creation" -}}
+    {{- $_ := set $jobAnn "helm.sh/hook-weight" "-4" -}}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $jobAnn $commonAnn)) | trim | nindent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+        {{- $podTempLabels := dict -}}
+        {{- $_ := set $podTempLabels "sidecar.istio.io/inject" "false" -}}
+        {{- $_ := set $podTempLabels "app" (printf "%s-%s" (include "eric-data-document-database-pg.name" .) "shh-hook") -}}
+        {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+        {{- $networkpllabels := fromYaml (include "eric-data-document-database-pg.networkpolicyp2.labels" .) -}}
+        {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $podTempLabels $commonLabels $networkpllabels)) | trim | nindent 8 }}
+      annotations:
+        {{- $podTempAnn := dict -}}
+        {{- if .Values.bandwidth.cleanuphook.maxEgressRate }}
+          {{- $_ := set $podTempAnn "kubernetes.io/egress-bandwidth" (.Values.bandwidth.cleanuphook.maxEgressRate | toString) -}}
+        {{- end }}
+        {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+        {{- $appArmorAnn := include "eric-data-document-database-pg.appArmorProfile" (dict "root" . "Scope" "NoLSHook" "containerList" (list "shh-hook")) | fromYaml -}}
+        {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $podTempAnn $appArmorAnn $commonAnn)) | trim | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ template "eric-data-document-database-pg.name" . }}-shh-hook
+      {{- if include "eric-data-document-database-pg.pullSecrets" . }}
+      imagePullSecrets:
+        - name: {{ template "eric-data-document-database-pg.pullSecrets" . }}
+      {{- end }}
+      securityContext:
+        {{- if include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . -}}
+{{- include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . | nindent 8 }}
+       {{- end }}
+{{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "Pod") | nindent 8 }}
+      {{- if or (not (empty .Values.nodeSelector.oppatchhook)) (not (eq "{}" (include "eric-data-document-database-pg.global.nodeSelector" .))) }}
+      nodeSelector:
+{{- include "eric-data-document-database-pg.nodeSelector.oppatchhook" . | nindent 8 }}
+      {{- end }}
+      tolerations:
+{{ include "eric-data-document-database-pg.merge-tolerations" (dict "root" . "podbasename" "oppatchhook") | nindent 8}}
+      containers:
+        - name: shh-hook
+          image: {{ template "eric-data-document-database-pg.kubeclientImagePath" . }}
+          imagePullPolicy: {{ include "eric-data-document-database-pg.imagePullPolicy" . | quote }}
+          env:
+          - name: TZ
+            value: {{ $globalValue.timezone | quote }}
+          - name: LOG_SCHEMA
+            value: {{ template "eric-data-document-database-pg.logSchema" . }}
+          - name: LOG_REDIRECT
+            value: "stdout"
+          - name: CLUSTER_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: CHART_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: RELEASE_NAME
+            value: {{ .Release.Name | quote }}
+          - name: KUBERNETES_NAMESPACE
+            valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+          - name: TRANSIT_COMPONENT
+            value: {{ template "eric-data-document-database-pg.name" . }}-transit-pvc
+          - name: RELEASE_UPGRADE
+            value: {{ .Release.IsUpgrade | quote }}
+          - name: CURRENT_JOB_INVENTORY_NAME_STASHED
+            value: {{ template "eric-data-document-database-pg.hkln.job-inventory-secret-name" . }}-stashed
+          - name: PDB_API_VERSION
+            {{- if .Capabilities.APIVersions.Has "policy/v1/PodDisruptionBudget" }}
+            value: "v1"
+            {{- else }}
+            value: "v1beta1"
+            {{- end }}
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - "/usr/bin/catatonit -- 
+              {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }}
+              /usr/bin/python {{ template "eric-data-document-database-pg.hook.scriptPath" . }}/shh_job_secret_handler.py"
+          securityContext:
+            {{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "shh-hook") | nindent 12 }}
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+            {{- if .Values.resources.kube_client.requests.cpu }}
+              cpu: {{ .Values.resources.kube_client.requests.cpu  | quote }}
+            {{- end }}
+            {{- if .Values.resources.kube_client.requests.memory }}
+              memory: {{ .Values.resources.kube_client.requests.memory  | quote }}
+            {{- end }}
+            {{- if index .Values.resources.kube_client.requests "ephemeral-storage" }}
+              ephemeral-storage: {{ index .Values.resources.kube_client.requests "ephemeral-storage" | quote }}
+            {{- end }}
+            limits:
+            {{- if .Values.resources.kube_client.limits.cpu }}
+              cpu: {{ .Values.resources.kube_client.limits.cpu  | quote }}
+            {{- end }}
+            {{- if .Values.resources.kube_client.limits.memory }}
+              memory: {{ .Values.resources.kube_client.limits.memory  | quote }}
+            {{- end }}
+            {{- if index .Values.resources.kube_client.limits "ephemeral-storage" }}
+              ephemeral-storage: {{ index .Values.resources.kube_client.limits "ephemeral-storage" | quote }}
+            {{- end }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+{{- end }}
+{{- end }}

@@ -1,0 +1,22 @@
+1.0.36
+- Add ChangeLog.txt and License file
+1.0.37
+- Added Scale and Termination order for packages
+1.0.38
+- Changed "name" field value in tosca.policies.nfv.ScalingAspects to not match scaling aspect name
+1.0.39
+- rollback Scale and Termination order for packages
+1.0.40
+- Package updated with deployable modules: default - all enabled
+1.0.41
+- Remove usage of deprecated com.ericsson.sec.tls/v1alpha1, siptls.sec.ericsson.com/v1alpha1
+1.0.42
+- Update siptls.sec.ericsson.com to version 6.1.0+1
+1.0.43
+- Changed versions of charts
+- Added eric-data-document-database-pg to spider-app
+1.0.44
+- Disabled by default eric-data-document-database
+- Disabled PVCs for eric-data-document-database and influxdb
+1.0.45
+- Updated eric-pm-bulk-reporter to use replicaCount from values, in order to support Scale

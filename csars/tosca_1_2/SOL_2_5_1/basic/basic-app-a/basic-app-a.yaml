@@ -1,0 +1,123 @@
+tosca_definitions_version: tosca_simple_yaml_1_2
+
+description: VNF Descriptor for Ericsson Basic App
+
+imports:
+  - etsi_nfv_sol001_vnfd_2_5_1_types.yaml
+
+data_types:
+  ericsson.datatypes.nfv.InstantiateVnfOperationAdditionalParameters:
+    derived_from: tosca.datatypes.nfv.VnfOperationAdditionalParameters
+    properties:
+      probesConfig.readinessProbe.delayBeforeReady:
+        type: string
+        description: delay before pod will report 'ready' state
+        required: false
+        default: "10"
+      day0.configuration.secretname:
+        type: string
+        description: Name of the day0 secret
+        required: false
+        default: "day0-secret"
+      day0.configuration.param1.key:
+        type: string
+        description: login key
+        required: false
+        default: "login"
+      day0.configuration.param1.value:
+        type: string
+        description: login value
+        required: false
+        default: "testlogin"
+      day0.configuration.param2.key:
+        type: string
+        description: password key
+        required: false
+        default: "password"
+      day0.configuration.param2.value:
+        type: string
+        description: password value
+        required: false
+        default: "testpassword"
+
+  ericsson.datatypes.nfv.ChangePackageVnfOperationAdditionalParameters:
+    derived_from: tosca.datatypes.nfv.VnfOperationAdditionalParameters
+    properties:
+      probesConfig.readinessProbe.delayBeforeReady:
+        type: string
+        description: delay before pod will report 'ready' state
+        required: false
+        default: "10"
+
+node_types:
+  Ericsson.TEST-VNF.testing.version_1:
+    derived_from: tosca.nodes.nfv.VNF
+
+    properties:
+      descriptor_id:
+        type: string
+        constraints: [ valid_values: [ 8eca7b35-72d8-4cab-9fee-138f1c3b9caaa ] ]
+        default: 8eca7b35-72d8-4cab-9fee-138f1c3b9caaa
+      descriptor_version:
+        type: string
+        constraints: [ valid_values: [ 1.0.7 ] ]
+        default: 1.0.7
+      provider:
+        type: string
+        constraints: [ valid_values: [ Ericsson ] ]
+        default: Ericsson
+      product_name:
+        type: string
+        constraints: [ valid_values: [ basic-app-a ] ]
+        default: basic-app-a
+      software_version:
+        type: string
+        constraints: [ valid_values: [ "1.0.7s" ] ]
+        default: "1.0.7s"
+      vnfm_info:
+        type: list
+        entry_schema:
+          type: string
+          constraints: [ valid_values: [ "3881:E-VNFM" ] ]
+        default: [ "3881:E-VNFM" ]
+      flavour_id:
+        type: string
+        constraints: [ valid_values: [ default ] ]
+        default: default
+      flavour_description:
+        type: string
+        default: ""
+
+    interfaces:
+      Vnflcm:
+        type: tosca.interfaces.nfv.Vnflcm
+        instantiate:
+          inputs:
+            helm_packages:
+              type: list
+              required: true
+              description: list of all helm charts
+            additional_parameters:
+              type: ericsson.datatypes.nfv.InstantiateVnfOperationAdditionalParameters
+              required: false
+        terminate: { }
+        scale: { }
+        change_package:
+          inputs:
+            helm_packages:
+              type: list
+              required: true
+              description: list of all helm charts
+            additional_parameters:
+              type: ericsson.datatypes.nfv.ChangePackageVnfOperationAdditionalParameters
+              required: false
+
+    artifacts:
+      helm_package1:
+        description: Helm package associated with this descriptor
+        type: tosca.artifacts.File
+        file: Definitions/OtherTemplates/busybox-simple-chart-1.0.0.tgz
+      software_images:
+        description: Location of the software images being used in this package
+        type: tosca.artifacts.nfv.SwImage
+        file: Files/images/docker.tar

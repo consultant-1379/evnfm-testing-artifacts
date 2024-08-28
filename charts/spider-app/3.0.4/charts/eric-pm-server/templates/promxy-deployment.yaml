@@ -1,0 +1,196 @@
+{{- if .Values.server.ha.enabled }}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {{- include "eric-pm-server.annotations" . | nindent 4 }}
+  labels:
+    {{- include "eric-pm-server.promxyLabels" . | nindent 4 }}
+    {{- if .Values.promxy.extraLabels}}
+    {{ toYaml .Values.promxy.extraLabels | nindent 4 }}
+    {{- end}}
+  name: {{ template "eric-pm-server.promxyName" . }}
+spec:
+  replicas: {{ .Values.promxy.replicaCount }}
+  strategy:
+{{ include "eric-pm-server.updateStrategy" .Values.updateStrategy.promxy | indent 4 }}
+  selector:
+    matchLabels:
+      {{- include "eric-pm-server.promxySelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- $defaultLabels := include "eric-pm-server.promxyLabels" . | fromYaml -}}
+        {{- $extraLabels := .Values.promxy.extraLabels -}}
+        {{- $peerLabels := include "eric-pm-server.promxyPeer.labels" . | fromYaml -}}
+        {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $defaultLabels $extraLabels $peerLabels)) | trim | nindent 8 }}
+      annotations:
+        {{- $prom := include "eric-pm-server.prometheusAnnotations" . | fromYaml }}
+        {{- $appArmorAnn := include "eric-pm-server.appArmorProfileAnnotation" . | fromYaml }}
+        {{- $egressAnn := dict -}}
+        {{- if (include "eric-pm-server.maxEgressRate" .) -}}
+          {{- $_ := set $egressAnn "kubernetes.io/egress-bandwidth" (include "eric-pm-server.maxEgressRate" . | toString) -}}
+        {{- end }}
+        {{- $serverPodAnn := .Values.server.podAnnotations -}}
+        {{- $commonAnn := include "eric-pm-server.annotations" . | fromYaml -}}
+        {{- include "eric-pm-server.mergeAnnotations" (dict "location" .Template.Name "sources" (list $prom $appArmorAnn $egressAnn $serverPodAnn $commonAnn)) | trim | nindent 8 }}
+    spec:
+      securityContext:
+        fsGroup: {{ template "eric-pm-server.fsGroup.coordinated" . }}
+        {{- include "eric-pm-server.podSeccompProfile" . | indent 8 }}
+        {{- include "eric-pm-server.supplementalGroups" . }}
+      serviceAccountName: {{ template "eric-pm-server.promxyServiceAccount" . }}
+      initContainers:
+        {{- include "eric-pm-server.initContainer" (list . "eric-pm-promxy") | nindent 8 }}
+      containers:
+{{- if (eq "true" (include "eric-pm-server.logShipperEnabled" .)) }}
+{{- $logshipperImageDict := dict "logshipperSidecarImage" ((((.Values).global).logShipper).config).image -}}
+{{- include "eric-log-shipper-sidecar.log-shipper-sidecar-container" (mergeOverwrite . $logshipperImageDict ) | indent 6 }}
+{{- end }}
+      - name: eric-pm-promxy
+        image: {{ template "eric-pm-server.imagePath" (merge (dict "imageName" "eric-pm-promxy") .) }}
+        imagePullPolicy: {{ template "eric-pm-server.imagePullPolicy" . }}
+        # TODO(xvunguy): add security context & seccompProfile here
+        args:
+        - /bin/bash
+        - -c
+        - /stdout-redirect
+          -service-id={{ template "eric-pm-server.promxyName" .}}
+          -container=eric-pm-promxy
+          -redirect={{ template "eric-pm-server.log.outputs" . }}
+          -logfile=/logs/pm-promxy.log
+          {{- if .Values.log }}
+          {{- if .Values.log.format }}
+          {{- if eq .Values.log.format "json" }}
+          -config=/etc/stdout_redirect_config/config.yml
+          -format={{ .Values.log.format }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          -run="/bin/promxy
+                --config=/etc/config/config.yaml
+                --web.enable-lifecycle
+                --metrics-path={{ .Values.promxy.metricPath | default "/promxy/metrics" | quote }}
+                {{- if (eq "true" (include "eric-pm-server.logShipperEnabled" .)) }}
+                --http.shutdown-delay="1s"
+                {{- end }}
+                --log-level={{ .Values.logLevel | default "info" | quote }}
+                {{- if .Values.log }}
+                {{- if .Values.log.format }}
+                --log-format="json"
+                {{- end }}
+                {{- end }}
+               {{- range $key, $value := .Values.promxy.extraArgs }}
+                --{{ $key }}={{ $value }}
+               {{- end }}"
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: TZ
+            value: {{ $g.timezone | default "UTC" | quote }}
+          - name: LOG_LEVEL
+            value: {{ .Values.logLevel }}
+          {{- if .Values.promxy.env }}
+{{ toYaml .Values.promxy.env | indent 10}}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: http-promxy
+            scheme: HTTP
+{{ toYaml .Values.probes.promxy.livenessProbe | indent 10 }}
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http-promxy
+            scheme: HTTP
+{{ toYaml .Values.probes.promxy.readinessProbe | indent 10 }}
+        ports:
+        - name: http-promxy
+          containerPort: 8082
+        volumeMounts:
+{{- if (eq "true" (include "eric-pm-server.logShipperEnabled" .)) }}
+{{- include "eric-log-shipper-sidecar.log-shipper-sidecar-mounts" . | indent 8 }}
+{{- end}}
+        {{- if .Values.log }}
+        {{- if .Values.log.format }}
+        {{- if eq .Values.log.format "json" }}
+        - name: stdout-redirect-volume
+          mountPath: /etc/stdout_redirect_config
+        {{- end }}
+        {{- end }}
+        {{- end }}
+        - name: config-volume
+          mountPath: "/etc/config/"
+          readOnly: true
+      {{- if $g.security.tls.enabled }}
+        - name: cacert
+          mountPath: "/run/secrets/cacert"
+          readOnly: true
+        - name: pms-client-certificate
+          mountPath: "/run/secrets/pms"
+      {{- end }}
+        resources:
+{{- include "eric-pm-server.resources" .Values.resources.promxy | indent 10 }}
+{{ if $g.security.tls.enabled }}
+{{- include "eric-pm-server.reverseProxy" (list . "8082") | indent 6 }}
+{{ end }}
+{{- include "eric-pm-server.configmap-reload" (list . "8082") | indent 6 }}
+      {{- if include "eric-pm-server.pullSecrets" . }}
+      imagePullSecrets:
+        - name: {{ template "eric-pm-server.pullSecrets" . }}
+      {{- end }}
+      {{- if (or .Values.nodeSelector $g.nodeSelector) }}
+      nodeSelector: {{- include "eric-pm-server.eric-pm-server-promxy.nodeSelector" . | nindent 8 }}
+      {{- end }}
+    {{- if (include "eric-pm-server.eric-pm-server-promxy.topologySpreadConstraints" .) }}
+      topologySpreadConstraints: {{- (include "eric-pm-server.eric-pm-server-promxy.topologySpreadConstraints" .) | indent 8}}
+    {{- end }}
+
+{{- $name := (include "eric-pm-server.promxyName" .) }}
+{{- include "eric-pm-server.podAntiAffinity" (list . $name) | nindent 6 -}}
+{{- include "eric-pm-server.podPriority" (index .Values "podPriority" "eric-pm-server-promxy") | nindent 6 }}
+{{- include "eric-pm-server.promxyTolerations" . | nindent 6 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds.promxy }}
+      volumes:
+{{- if (eq "true" (include "eric-pm-server.logShipperEnabled" .)) }}
+{{- include "eric-log-shipper-sidecar.log-shipper-sidecar-volumes" . | indent 6 }}
+{{- end }}
+      {{- if .Values.log }}
+      {{- if .Values.log.format }}
+      {{- if eq .Values.log.format "json" }}
+      - name: stdout-redirect-volume
+        configMap:
+          name: {{ template "eric-pm-server.name" $ }}-stdout-redirect
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      - name: config-volume
+        configMap:
+          name: {{ template "eric-pm-server.promxyConfigmap" .}}
+{{- if $g.security.tls.enabled }}
+{{- include "eric-pm-server.reverseProxyVolume" . | indent 6 }}
+      - name: cacert
+        secret:
+          optional: true
+          secretName: eric-sec-sip-tls-trusted-root-cert
+      - name: pms-client-certificate
+        secret:
+          optional: true
+          secretName: {{ template "eric-pm-server.promxyName" . }}-pms-client-cert
+      - name: pmcert
+        secret:
+          optional: true
+          secretName: {{ template "eric-pm-server.promxyName" . }}-cert
+      - name: pmca
+        secret:
+          optional: true
+          secretName: {{ template "eric-pm-server.name" . }}-ca
+{{- end }}
+{{- end }}

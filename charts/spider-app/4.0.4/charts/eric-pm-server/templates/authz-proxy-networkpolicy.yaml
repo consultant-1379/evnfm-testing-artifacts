@@ -1,0 +1,33 @@
+{{- /* DR-D1125-054 */ -}}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+{{- if and $g.networkPolicy .Values.networkPolicy -}}
+{{- if and $g.networkPolicy.enabled .Values.networkPolicy.enabled -}}
+{{- if .Values.authorizationProxy.enabled -}}
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- $isAuthzServerTls := and $g.security.tls.enabled (ne $authorizationProxy.service.endpoints.authorizationProxy.tls.enforced "optional") -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ template "eric-pm-server.name" . }}-iccr-access
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations: {{- include "eric-pm-server.annotations" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "eric-pm-server.name" . }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ $authorizationProxy.adpIccrServiceName }}
+    ports:
+    - port: http-apo2
+      protocol: TCP
+{{- end -}}
+{{- end -}}
+{{- end -}}

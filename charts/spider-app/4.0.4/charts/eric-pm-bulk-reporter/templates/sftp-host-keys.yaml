@@ -1,0 +1,15 @@
+{{- if .Values.security.certificateManagement.enabled }}
+{{- if .Values.security.keyManagement.enabled -}}
+  {{- printf "security.keyManagement.enabled can't be set true with security.certificateManagement.enabled" | fail -}}
+{{- end -}}
+apiVersion: certm.sec.ericsson.com/v1
+kind: ExternalCertificate
+metadata:
+  name: {{ template "eric-pm-bulk-reporter.name" . }}-sftp-server-key
+  labels: {{- include "eric-pm-bulk-reporter.labels" . | nindent 4 }}
+  annotations: {{- include "eric-pm-bulk-reporter.annotations" . | nindent 4 }}
+spec:
+  generated-secret-name: {{ template "eric-pm-bulk-reporter.name" . }}-certm-sftp-hostkey
+  generated-secret-type: opaque
+  asymmetric-key-name: {{ .Values.service.sshHostKeys.name }}
+{{- end }}

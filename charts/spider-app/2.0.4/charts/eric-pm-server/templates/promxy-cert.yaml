@@ -1,0 +1,38 @@
+{{- if .Values.server.ha.enabled }}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+{{- if $g.security.tls.enabled }}
+apiVersion: siptls.sec.ericsson.com/v1
+kind: InternalCertificate
+metadata:
+  annotations: {{- include "eric-pm-server.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-server.promxyLabels" . | nindent 4 }}
+    {{- if .Values.promxy.extraLabels}}
+    {{ toYaml .Values.promxy.extraLabels | nindent 4 }}
+    {{- end}}
+  name: {{ template "eric-pm-server.promxyName" . }}-cert
+spec:
+
+  kubernetes:
+    generatedSecretName: {{ template "eric-pm-server.promxyName" . }}-cert
+
+    certificateName: srvcert.pem
+
+    privateKeyName: srvprivkey.pem
+
+  certificate:
+    subject:
+      cn: {{ template "eric-pm-server.promxyName" . }}
+
+      ## debug options
+      # validity:
+      #   overrideTtl: 180
+
+    subjectAlternativeName:
+      dns:
+        - certified-scrape-target
+
+    extendedKeyUsage:
+      tlsClientAuth: false
+      tlsServerAuth: true
+{{- end }}
+{{- end }}

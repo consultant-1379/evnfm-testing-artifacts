@@ -1,0 +1,27 @@
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- if $authorizationProxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "eric-pm-server.authz-proxy-service-name" . }}
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations:
+    {{- $serverPodAnn := .Values.server.podAnnotations -}}
+    {{- $commonAnn := include "eric-pm-server.annotations" . | fromYaml -}}
+    {{- $authzproxyAnn := include "eric-pm-server.authz-proxy-service-annotations" . | fromYaml -}}
+    {{- include "eric-pm-server.mergeAnnotations" (dict "location" .Template.Name "sources" (list $serverPodAnn $commonAnn $authzproxyAnn)) | trim | nindent 4 }}
+spec:
+  type: ClusterIP
+{{- if $g.internalIPFamily }}
+  ipFamilies: [{{ $g.internalIPFamily | quote }}]  # ipFamilies was introduced in K8s v1.20
+{{- end }}
+  ports:
+{{ include "eric-pm-server.authz-proxy-service-port" . | indent 4 }}
+  selector:
+    app.kubernetes.io/name: {{ template "eric-pm-server.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+{{- end -}}

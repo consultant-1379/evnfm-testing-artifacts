@@ -1,0 +1,21 @@
+{{- if .Values.helmtest.enabled -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels: {{- include "eric-pm-bulk-reporter.labels" . | nindent 4 }}
+  name: {{ include "eric-pm-bulk-reporter.name" . }}-helmtest-{{ .Release.Namespace }}
+  namespace: {{ .Release.Namespace }}
+  annotations: {{- include "eric-pm-bulk-reporter.annotations" . | nindent 4 }}
+{{- if .Values.helmtest.enableDeletePolicy }}
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed
+{{- end }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "eric-pm-bulk-reporter.helmtest.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "eric-pm-bulk-reporter.name" . }}-helmtest-{{ .Release.Namespace }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end -}}

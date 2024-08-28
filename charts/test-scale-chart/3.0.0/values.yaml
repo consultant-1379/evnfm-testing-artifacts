@@ -1,0 +1,45 @@
+global:
+  registry:
+    url: armdocker.rnd.ericsson.se
+  pullSecret: test
+
+vnfc1:
+  ingress:
+    enabled: false
+    host:
+  replicaCount: 1
+  minReplicas: 1
+  maxReplicas: 10
+  autoscaling:
+    enabled: true
+  test-cnf:
+    ingress:
+      enabled: false
+      host:
+    replicaCount: 1
+    minReplicas: 1
+    maxReplicas: 10
+vnfc2:
+  ingress:
+    enabled: false
+    host:
+  replicaCount: 1
+vnfc3:
+  ingress:
+    enabled: false
+    host:
+  replicaCount: 1
+vnfc4:
+  ingress:
+    enabled: false
+    host:
+  replicaCount: 1
+vnfc5:
+  ingress:
+    enabled: false
+    host:
+  replicaCount: 1
+  minReplicas: 1
+  maxReplicas: 10
+  autoscaling:
+    enabled: true

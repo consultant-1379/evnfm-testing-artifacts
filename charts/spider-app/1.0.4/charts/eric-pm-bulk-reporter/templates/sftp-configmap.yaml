@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "eric-pm-bulk-reporter.name" . }}-sftp-config
+  labels: {{- include "eric-pm-bulk-reporter.labels" . | nindent 4 }}
+  annotations: {{- include "eric-pm-bulk-reporter.annotations" . | nindent 4 }}
+data:
+  supervisord.conf: |
+{{ tpl (.Files.Get "files/supervisord_conf.yaml") . | indent 4 }}
+  rsyslog.conf: |
+{{ tpl (.Files.Get "files/rsyslog_conf.yaml") . | indent 4 }}
+  la-login-time.ini: |
+{{ tpl (.Files.Get "files/la-login-time_ini.yaml") . | indent 4 }}
+  motd: |
+{{ tpl (.Files.Get "files/motd.yaml") . | indent 4 }}
+  sshd-config: |
+{{ tpl (.Files.Get "files/sshd_config.yaml") . | indent 4 }}
+  sssd.conf: |
+{{ tpl (.Files.Get "files/sssd_conf.yaml") . | indent 4 }}
+  la-sm.ini: |
+{{ tpl (.Files.Get "files/la-sm_ini.yaml") . | indent 4 }}
+  ldap-sm-config.ini: |
+{{ tpl (.Files.Get "files/ldap-sm-config_ini.yaml") . | indent 4 }}
+  role2group.conf: |
+{{ tpl (.Files.Get "files/role2group_conf.yaml") . | indent 4 }}
+  execprobe.yaml: |
+{{ tpl (.Files.Get "files/execprobe.yaml") . | indent 4 }}

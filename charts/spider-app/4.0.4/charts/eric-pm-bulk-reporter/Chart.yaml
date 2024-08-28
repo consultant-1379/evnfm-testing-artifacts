@@ -1,0 +1,7 @@
+apiVersion: v1
+description: A Helm chart for the PM Bulk Reporter
+maintainers:
+- name: Ericsson AB
+  url: www.ericsson.com
+name: eric-pm-bulk-reporter
+version: 10.2.0-23

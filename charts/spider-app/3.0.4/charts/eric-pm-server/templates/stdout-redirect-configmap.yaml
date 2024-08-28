@@ -1,0 +1,319 @@
+{{- if .Values.log }}
+{{- if .Values.log.format }}
+{{- if eq .Values.log.format "json" }}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations: {{- include "eric-pm-server.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-server.labels" . | nindent 4 }}
+  name: {{ template "eric-pm-server.name" . }}-stdout-redirect
+data:
+  config.yml: |
+    log-schema-version: 1.2.0
+    timestamp-format: "2006-01-02T15:04:05.000Z"
+    pod-name: POD_NAME
+    namespace: POD_NAMESPACE
+    fieldMapping:
+      - key_value_separator: "="
+        keys_separator: " "
+        mappings:
+          - source_key: ts
+            target_key: timestamp
+          - source_key: level
+            target_key: severity
+          - source_key: msg
+            target_key: message
+          - source_key: metadata
+            target_key: meta
+          - source_key: extra_data
+            target_key: extra
+      - key_value_separator: ":"
+        keys_separator: ","
+        mappings:
+          - source_key: time
+            target_key: timestamp
+          - source_key: level
+            target_key: severity
+          - source_key: msg
+            target_key: message
+          - source_key: metadata
+            target_key: meta
+          - source_key: extra_data
+            target_key: extra
+    nest:
+      - field-name: meta
+        nest-under: metadata.meta
+      - field-name: caller
+        nest-under: metadata.function
+      - field-name: component
+        nest-under: metadata.category
+      - field-name: extra
+        nest-under: extra_data.prometheus.extra
+      - field-name: MaxBlockDuration
+        nest-under: extra_data.prometheus.MaxBlockDuration
+      - field-name: MaxBytes
+        nest-under: extra_data.prometheus.MaxBytes
+      - field-name: MinBlockDuration
+        nest-under: extra_data.prometheus.MinBlockDuration
+      - field-name: NoLockfile
+        nest-under: extra_data.prometheus.NoLockfile
+      - field-name: RetentionDuration
+        nest-under: extra_data.prometheus.RetentionDuration
+      - field-name: WALCompression
+        nest-under: extra_data.prometheus.WALCompression
+      - field-name: WALSegmentSize
+        nest-under: extra_data.prometheus.WALSegmentSize
+      - field-name: func
+        nest-under: extra_data.prometheus.func
+      - field-name: totalDuration
+        nest-under: extra_data.prometheus.totalDuration
+      - field-name: tracing
+        nest-under: extra_data.prometheus.tracing
+      - field-name: web_handler
+        nest-under: extra_data.prometheus.web_handler
+      - field-name: scrape
+        nest-under: extra_data.prometheus.scrape
+      - field-name: scrape_sd
+        nest-under: extra_data.prometheus.scrape_sd
+      - field-name: rules
+        nest-under: extra_data.prometheus.rules
+      - field-name: remote_storage
+        nest-under: extra_data.prometheus.remote_storage
+      - field-name: wal_replay_duration
+        nest-under: extra_data.prometheus.wal_replay_duration
+      - field-name: wbl_replay_duration
+        nest-under: extra_data.prometheus.wbl_replay_duration
+      - field-name: query_engine
+        nest-under: extra_data.prometheus.query_engine
+      - field-name: notify_sd
+        nest-under: extra_data.prometheus.notify_sd
+      - field-name: discovery
+        nest-under: extra_data.prometheus.discovery
+      - field-name: total_replay_duration
+        nest-under: extra_data.prometheus.total_replay_duration
+      - field-name: notify
+        nest-under: extra_data.prometheus.notify
+      - field-name: alertmanager
+        nest-under: extra_data.prometheus.alertmanager
+      - field-name: backfiller
+        nest-under: extra_data.prometheus.backfiller
+      - field-name: build_context
+        nest-under: extra_data.prometheus.build_context
+      - field-name: deprecation_notice
+        nest-under: extra_data.prometheus.deprecation_notice
+      - field-name: err
+        nest-under: extra_data.prometheus.err
+      - field-name: fd_limits
+        nest-under: extra_data.prometheus.fd_limits
+      - field-name: fs_type
+        nest-under: extra_data.prometheus.fs_type
+      - field-name: host_details
+        nest-under: extra_data.prometheus.host_details
+      - field-name: name
+        nest-under: extra_data.prometheus.name
+      - field-name: vm_limits
+        nest-under: extra_data.prometheus.vm_limits
+      - field-name: flushing
+        nest-under: extra_data.prometheus.flushing
+      - field-name: automaxprocs
+        nest-under: extra_data.prometheus.automaxprocs
+      - field-name: addr
+        nest-under: extra_data.prometheus.addr
+      - field-name: address
+        nest-under: extra_data.prometheus.address
+      - field-name: block
+        nest-under: extra_data.prometheus.block
+      - field-name: bytesWritten
+        nest-under: extra_data.prometheus.bytesWritten
+      - field-name: checkpoint
+        nest-under: extra_data.prometheus.checkpoint
+      - field-name: client
+        nest-under: extra_data.prometheus.client
+      - field-name: count
+        nest-under: extra_data.prometheus.count
+      - field-name: currentSegment
+        nest-under: extra_data.prometheus.currentSegment
+      - field-name: detail
+        nest-under: extra_data.prometheus.detail
+      - field-name: dir
+        nest-under: extra_data.prometheus.dir
+      - field-name: duration
+        nest-under: extra_data.prometheus.duration
+      - field-name: event
+        nest-under: extra_data.prometheus.event
+      - field-name: exemplar
+        nest-under: extra_data.prometheus.exemplar
+      - field-name: expr
+        nest-under: extra_data.prometheus.expr
+      - field-name: file
+        nest-under: extra_data.prometheus.file
+      - field-name: filename
+        nest-under: extra_data.prometheus.filename
+      - field-name: filesize
+        nest-under: extra_data.prometheus.filesize
+      - field-name: first
+        nest-under: extra_data.prometheus.first
+      - field-name: from
+        nest-under: extra_data.prometheus.from
+      - field-name: from_segment
+        nest-under: extra_data.prometheus.from_segment
+      - field-name: glob
+        nest-under: extra_data.prometheus.glob
+      - field-name: id
+        nest-under: extra_data.prometheus.id
+      - field-name: instance
+        nest-under: extra_data.prometheus.instance
+      - field-name: key
+        nest-under: extra_data.prometheus.key
+      - field-name: label
+        nest-under: extra_data.prometheus.label
+      - field-name: lastCheckpoint
+        nest-under: extra_data.prometheus.lastCheckpoint
+      - field-name: machine
+        nest-under: extra_data.prometheus.machine
+      - field-name: metric
+        nest-under: extra_data.prometheus.metric
+      - field-name: mode
+        nest-under: extra_data.prometheus.mode
+      - field-name: new
+        nest-under: extra_data.prometheus.new
+      - field-name: node
+        nest-under: extra_data.prometheus.node
+      - field-name: num_dropped
+        nest-under: extra_data.prometheus.num_dropped
+      - field-name: option
+        nest-under: extra_data.prometheus.option
+      - field-name: path
+        nest-under: extra_data.prometheus.path
+      - field-name: paths
+        nest-under: extra_data.prometheus.paths
+      - field-name: prefix
+        nest-under: extra_data.prometheus.prefix
+      - field-name: provider
+        nest-under: extra_data.prometheus.provider
+      - field-name: query
+        nest-under: extra_data.prometheus.query
+      - field-name: queue
+        nest-under: extra_data.prometheus.queue
+      - field-name: record
+        nest-under: extra_data.prometheus.record
+      - field-name: ref
+        nest-under: extra_data.prometheus.ref
+      - field-name: role
+        nest-under: extra_data.prometheus.role
+      - field-name: sample
+        nest-under: extra_data.prometheus.sample
+      - field-name: samples
+        nest-under: extra_data.prometheus.samples
+      - field-name: segment
+        nest-under: extra_data.prometheus.segment
+      - field-name: series
+        nest-under: extra_data.prometheus.series
+      - field-name: series_count
+        nest-under: extra_data.prometheus.series_count
+      - field-name: server
+        nest-under: extra_data.prometheus.server
+      - field-name: service
+        nest-under: extra_data.prometheus.service
+      - field-name: skipped_series
+        nest-under: extra_data.prometheus.skipped_series
+      - field-name: start
+        nest-under: extra_data.prometheus.start
+      - field-name: storage
+        nest-under: extra_data.prometheus.storage
+      - field-name: tags
+        nest-under: extra_data.prometheus.tags
+      - field-name: ulid
+        nest-under: extra_data.prometheus.ulid
+      - field-name: url
+        nest-under: extra_data.prometheus.url
+      - field-name: version
+        nest-under: extra_data.prometheus.version
+      - field-name: warnings
+        nest-under: extra_data.prometheus.warnings
+      - field-name: GOARCH
+        nest-under: extra_data.prometheus.GOARCH
+      - field-name: current
+        nest-under: extra_data.prometheus.current
+      - field-name: lastSendTimestamp
+        nest-under: extra_data.prometheus.lastSendTimestamp
+      - field-name: value
+        nest-under: extra_data.prometheus.value
+      - field-name: checkpointIndex
+        nest-under: extra_data.prometheus.checkpointIndex
+      - field-name: data
+        nest-under: extra_data.prometheus.data
+      - field-name: end
+        nest-under: extra_data.prometheus.end
+      - field-name: exemplarCount
+        nest-under: extra_data.prometheus.exemplarCount
+      - field-name: input
+        nest-under: extra_data.prometheus.input
+      - field-name: last
+        nest-under: extra_data.prometheus.last
+      - field-name: maxSegment
+        nest-under: extra_data.prometheus.maxSegment
+      - field-name: num_series
+        nest-under: extra_data.prometheus.num_series
+      - field-name: scrape_pool
+        nest-under: extra_data.prometheus.scrape_pool
+      - field-name: subs
+        nest-under: extra_data.prometheus.subs
+      - field-name: targets
+        nest-under: extra_data.prometheus.targets
+      - field-name: to
+        nest-under: extra_data.prometheus.to
+      - field-name: to_segment
+        nest-under: extra_data.prometheus.to_segment
+      - field-name: type
+        nest-under: extra_data.prometheus.type
+      - field-name: minSendTimestamp
+        nest-under: extra_data.prometheus.minSendTimestamp
+      - field-name: read
+        nest-under: extra_data.prometheus.read
+      - field-name: config
+        nest-under: extra_data.prometheus.config
+      - field-name: migrated
+        nest-under: extra_data.prometheus.migrated
+      - field-name: mint
+        nest-under: extra_data.prometheus.mint
+      - field-name: output
+        nest-under: extra_data.prometheus.output
+      - field-name: pageSize
+        nest-under: extra_data.prometheus.pageSize
+      - field-name: lastSegment
+        nest-under: extra_data.prometheus.lastSegment
+      - field-name: stack
+        nest-under: extra_data.prometheus.stack
+      - field-name: alert
+        nest-under: extra_data.prometheus.alert
+      - field-name: datacenter
+        nest-under: extra_data.prometheus.datacenter
+      - field-name: target
+        nest-under: extra_data.prometheus.target
+      - field-name: http2
+        nest-under: extra_data.prometheus.http2
+      - field-name: checkpoint_replay_duration
+        nest-under: extra_data.prometheus.checkpoint_replay_duration
+      - field-name: discovery
+        nest-under: extra_data.prometheus.discovery
+      - field-name: db_storage
+        nest-under: extra_data.prometheus.db_storage
+      - field-name: remoteAddr
+        nest-under: extra_data.promxy.remoteAddr
+      - field-name: method
+        nest-under: extra_data.promxy.method
+      - field-name: path
+        nest-under: extra_data.promxy.path
+      - field-name: protocol
+        nest-under: extra_data.promxy.protocol
+      - field-name: status
+        nest-under: extra_data.promxy.status
+      - field-name: responseBytes
+        nest-under: extra_data.promxy.responseBytes
+      - field-name: duration
+        nest-under: extra_data.promxy.duration
+{{- end }}
+{{- end }}
+{{- end }}

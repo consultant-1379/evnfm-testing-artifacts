@@ -1,0 +1,161 @@
+{{ if (empty .Values.server.configMapOverrideName) }}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations: {{- include "eric-pm-server.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-server.labels" . | nindent 4 }}
+  name: {{ template "eric-pm-server.name" . }}
+data:
+  {{- if and .Values.rbac.appMonitoring.configFileCreate ( .Values.rbac.appMonitoring.enabled) }}
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ .Values.scrapeConfig.global.scrapeInterval }}
+      scrape_timeout: {{ .Values.scrapeConfig.global.scrapeTimeout }}
+      evaluation_interval: {{ .Values.scrapeConfig.global.evaluationInterval }}
+      {{- if or .Values.server.ha.enabled (gt (int .Values.server.replicaCount) 1) }}
+      external_labels:
+        replica: $HOSTNAME
+      {{- end -}}
+    {{- if and .Values.config.recording_rules (not .Values.server.extraConfigmapMounts) }}
+    rule_files:
+      - "/etc/config/recording_rules.yml"
+    {{ else }}
+    rule_files:
+      {{- range .Values.server.extraConfigmapMounts }}
+      - {{ printf  "%s/%s.yml" .mountPath .configMap | quote -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if .Values.config.remote_write }}
+    remote_write:
+{{ tpl (toYaml .Values.config.remote_write | indent 6) . }}
+    {{- end }}
+    {{- if .Values.config.alerting }}
+    alerting:
+{{ toYaml .Values.config.alerting | indent 6 }}
+    {{- end }}
+    scrape_configs:
+{{ include "eric-pm-server.selfMonitoringJobs" . | indent 6 }}
+
+    {{- if .Values.scrapeConfig.deprecatedJobs.appMonitoring.enabled }}
+{{ include "eric-pm-server.legacyJobs" . | indent 6 }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.pod.scrape15s.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.pod.scrape15s.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "pod" "15s" "10s" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.pod.scrape5m.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.pod.scrape5m.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "pod" "5m" "5m" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.pod.scrape1m.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.pod.scrape1m.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "pod" "1m" "1m" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.pod.scrape3s.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.pod.scrape3s.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "pod" "3s" "3s" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.service.scrape15s.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.service.scrape15s.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "service" "15s" "10s" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.service.scrape5m.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.service.scrape5m.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "service" "5m" "5m" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.service.scrape1m.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.service.scrape1m.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "service" "1m" "1m" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.service.scrape3s.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.service.scrape3s.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "service" "3s" "3s" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.endpoints.scrape15s.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.endpoints.scrape15s.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "endpoints" "15s" "10s" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.endpoints.scrape5m.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.endpoints.scrape5m.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "endpoints" "5m" "5m" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.endpoints.scrape1m.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.endpoints.scrape1m.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "endpoints" "1m" "1m" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.scrapeConfig.jobs.endpoints.scrape3s.enabled }}
+    {{- $metricsPathCount := .Values.scrapeConfig.jobs.endpoints.scrape3s.metricsPathCount | int }}
+      {{- range $index := until $metricsPathCount }}
+      {{- $id := $index | add 1 }}
+{{ include "eric-pm-server.ph2ConfigJobs" (list $ "endpoints" "3s" "3s" $id) | indent 6 }}
+      {{- end }}
+    {{- end }}
+
+  {{- if .Values.config.recording_rules }}
+  recording_rules.yml: |
+{{ toYaml .Values.config.recording_rules | indent 4 }}
+  {{- end }}
+  {{- else }}
+  {{- range $file, $content := .Values.serverFiles }}
+  {{ $file }}:{{- tpl (toYaml $content) $ | indent 2 }}
+    {{- if and (eq $file "prometheus.yml")  $.Values.config.remote_write }}
+    remote_write:
+{{ toYaml $.Values.config.remote_write | indent 6 }}
+    {{- end }}
+    {{- if and (eq $file "prometheus.yml")  $.Values.config.alerting }}
+    alerting:
+{{ toYaml $.Values.config.alerting | indent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.config.recording_rules }}
+  recording_rules.yml: |
+{{ toYaml .Values.config.recording_rules | indent 4 }}
+  {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,30 @@
+{{ if .Values.helmHook.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ template "spider-app.name" . }}-helm-hook"
+  labels:
+    app.kubernetes.io/name: {{ include "spider-app.name" . }}
+    helm.sh/chart: {{ include "spider-app.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    "helm.sh/hook": {{ .Values.helmHook.type }}
+    "helm.sh/hook-delete-policy": {{ .Values.helmHook.deletePolicy }}
+spec:
+  backoffLimit: {{ .Values.helmHook.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: {{ include "spider-app.chart" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.global.pullSecret }}
+      containers:
+        - name: hook-job
+          image: {{ .Values.global.registry.url }}/proj-am/busybox/busybox:latest
+          command: ['sh', '-c', '{{ .Values.helmHook.command }}']
+      restartPolicy: Never
+{{- end }}

@@ -1,0 +1,11 @@
+eric-pm-bulk-reporter:
+  Scaling-Parameter-Name: eric-pm-bulk-reporter.replicaCount
+  Mciop-Name: helm_package2
+  Storage:
+    bulk_reporter_storage: eric-pm-bulk-reporter.persistentVolumeClaim.size
+  bulk_reporter_container:
+    Requested_CPU_Resources: eric-pm-bulk-reporter.resources.bulkreporter.requests.cpu
+    CPU_Resource_Limit: eric-pm-bulk-reporter.resources.bulkreporter.limits.cpu
+    Requested_Memory_Resources: eric-pm-bulk-reporter.resources.bulkreporter.requests.memory
+    Memory_Resource_Limit: eric-pm-bulk-reporter.resources.bulkreporter.limits.memory
+    Deployment_Allowed: eric-pm-bulk-reporter.enabled

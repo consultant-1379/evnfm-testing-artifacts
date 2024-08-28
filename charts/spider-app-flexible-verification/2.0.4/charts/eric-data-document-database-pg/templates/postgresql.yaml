@@ -1,0 +1,1016 @@
+{{- if (eq (include "eric-data-document-database-pg.fe-render" .) "true") }}
+{{- $globalValue := fromJson (include "eric-data-document-database-pg.global" .) -}}
+{{- $probesValue := fromJson (include "eric-data-document-database-pg.probes" .) -}}
+apiVersion: "docdb.data.ericsson.com/v1"
+kind: Postgresql
+metadata:
+  {{- $vctName := include "eric-data-document-database-pg.persistence.volumeMount.name" . -}}
+  {{- $name := include "eric-data-document-database-pg.name" . }}
+  {{- $VCTLabels := dict -}}
+  {{- $_ := set $VCTLabels "app" (include "eric-data-document-database-pg.name" .) -}}
+  {{- $_ := set $VCTLabels "cluster-name" (include "eric-data-document-database-pg.name" .) -}}
+  {{- $_ := set $VCTLabels "heritage" "Tiller" -}} {{- /* workaround after migrate from helm2 to helm3. Avoid upgrade fail. ADPPRG-26626 */ -}}
+  {{- $_ := set $VCTLabels "release" .Release.Name -}}
+  {{- $commonLabels := include "eric-data-document-database-pg.labels" . | fromYaml -}}
+  {{- $_ := unset $commonLabels "app.kubernetes.io/version" -}}
+  {{- $mergedLabels := include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $VCTLabels $commonLabels)) | fromYaml -}}
+  {{- $copiedVCTLabels := include "eric-data-document-database-pg.copyVCTLabels" (dict "vctName" $vctName "release" .Release "name" $name "customKeys" $mergedLabels) }}
+  {{- $copiedVCTAnn := include "eric-data-document-database-pg.copyVCTAnnotations" (dict "vctName"  $vctName "release" .Release "name" $name) }}
+  name: {{ template "eric-data-document-database-pg.name" . }}
+  labels:
+    {{- $statefulSetAnn := dict -}}
+    {{- $_ := set $statefulSetAnn "cluster-name" (include "eric-data-document-database-pg.name" .) -}}
+    {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels.extended-defaults" .) -}}
+    {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $statefulSetAnn $commonLabels)) | trim | nindent 4 }}
+  annotations:
+    {{- $statefulSetAnn := dict -}}
+    {{- $_ := set $statefulSetAnn "currentPGVersion" "13" -}}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $statefulSetAnn $commonAnn)) | nindent 4 }}
+spec:
+  teamId: {{ include "eric-data-document-database-pg.name" . | trunc 4 | quote }}
+  volume:
+    size: {{ template "eric-data-document-database-pg.persistentVolumeClaim.size" . }}
+    subPath: postgresql-db
+    storageClass: {{ template "eric-data-document-database-pg.persistentVolumeClaim.defaultStorageClassName" . }}
+    {{- if $copiedVCTLabels }}
+    labels:
+      {{- $copiedVCTLabels | nindent 6 }}
+    {{- end }}
+    {{- if $copiedVCTAnn }}
+    annotations:
+      {{- $copiedVCTAnn | nindent 6 }}
+    {{- end }}
+    enabled: {{ .Values.persistentVolumeClaim.enabled }}
+  numberOfInstances: {{ .Values.highAvailability.replicaCount }}
+  dockerImage: {{ template "eric-data-document-database-pg.pg13ImagePath" . }}
+  postgresql:
+    version: "13"
+  {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+  sslEnable: true
+  {{- end }}
+  updateStrategy:
+    type: OnDelete
+  {{- if include "eric-data-document-database-pg.pullSecrets" . }}
+  imagePullSecrets:
+    - name: {{ template "eric-data-document-database-pg.pullSecrets" . }}
+  {{- end }}
+  {{- if or (not (empty .Values.nodeSelector.postgres)) (not (eq "{}" (include "eric-data-document-database-pg.global.nodeSelector" .))) }}
+  nodeSelector:
+{{- include "eric-data-document-database-pg.nodeSelector.postgres" . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.topologySpreadConstraints.postgres }}
+  topologySpreadConstraints:
+{{ include "eric-data-document-database-pg.topologySpreadConstraints.postgres" .| nindent 4 }}
+  {{- end }}
+  tolerations:
+{{ include "eric-data-document-database-pg.merge-tolerations" (dict "root" . "podbasename" "postgres") | nindent 4}}
+  {{- if .Values.schedulerName }}
+  schedulerName: {{ .Values.schedulerName | quote }}
+  {{- end }}
+  {{- if .Values.terminationGracePeriodSeconds }}
+  podTerminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds.postgres | int }}
+  {{- end }}
+  {{- if .Values.podPriority.postgres.priorityClassName }}
+  podPriorityClassName: {{ .Values.podPriority.postgres.priorityClassName | quote }}
+  {{- end }}
+  {{- if (eq (include "eric-data-document-database-pg.internalIPFamily" .) "IPv4") }}
+  serviceIPFamilies:
+  - "IPv4"
+  {{- else if (eq (include "eric-data-document-database-pg.internalIPFamily" .) "IPv6") }}
+  serviceIPFamilies:
+  - "IPv6"
+  {{- end }}
+  patroni:
+    synchronous_mode: {{ .Values.highAvailability.synchronousModeEnabled }}
+  podSecurityContext:
+    fsGroup: {{ template "eric-data-document-database-pg.fsGroup.coordinated" . }}
+      {{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.Version }}
+    fsGroupChangePolicy: "OnRootMismatch"
+      {{- end }}
+    {{- if include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . -}}
+{{- include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . | nindent 4 }}
+    {{- end }}
+{{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "Pod") | nindent 4 }}
+  postgresPort: {{ .Values.service.port | int }}
+  pgContainerCommand:
+    - /bin/bash
+    - -c
+  pgContainerCommandArgs:
+    - " 
+      {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }} 
+      /entrypoint.sh "
+  resources:
+    requests:
+      {{- if .Values.resources.postgres.requests.memory }}
+      memory: {{ .Values.resources.postgres.requests.memory  | quote }}
+      {{- end }}
+      {{- if .Values.resources.postgres.requests.cpu }}
+      cpu: {{ .Values.resources.postgres.requests.cpu  | quote }}
+      {{- end }}
+      {{- if index .Values.resources.postgres.requests "ephemeral-storage" }}
+      ephemeral-storage: {{ index .Values.resources.postgres.requests "ephemeral-storage" | quote }}
+      {{- end }}
+      {{- if index .Values.resources.postgres.requests "hugepages-2Mi" }}
+      hugepages-2Mi: {{ index .Values.resources.postgres.requests "hugepages-2Mi" | quote }}
+      {{- end }}
+      {{- if index .Values.resources.postgres.requests "hugepages-1Gi" }}
+      hugepages-1Gi: {{ index .Values.resources.postgres.requests "hugepages-1Gi" | quote }}
+      {{- end }}
+    limits:
+      {{- if .Values.resources.postgres.limits.cpu }}
+      cpu: {{ .Values.resources.postgres.limits.cpu  | quote }}
+      {{- end }}
+      {{- if .Values.resources.postgres.limits.memory }}
+      memory: {{ .Values.resources.postgres.limits.memory  | quote }}
+      {{- end }}
+      {{- if index .Values.resources.postgres.limits "ephemeral-storage" }}
+      ephemeral-storage: {{ index .Values.resources.postgres.limits "ephemeral-storage" | quote }}
+      {{- end }}
+      {{- if index .Values.resources.postgres.limits "hugepages-2Mi" }}
+      hugepages-2Mi: {{ index .Values.resources.postgres.limits "hugepages-2Mi" | quote }}
+      {{- end }}
+      {{- if index .Values.resources.postgres.limits "hugepages-1Gi" }}
+      hugepages-1Gi: {{ index .Values.resources.postgres.limits "hugepages-1Gi" | quote }}
+      {{- end }}
+  {{- if .Values.affinity.podAntiAffinity }}
+{{ include "eric-data-document-database-pg.affinity" .| indent 2 }}
+  {{- end }}
+  statefulsetMatchLabels:
+    app: {{ template "eric-data-document-database-pg.name" . }}
+    cluster-name: {{ template "eric-data-document-database-pg.name" . }}
+  securityContext:
+    {{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "postgres") | nindent 4 }}
+    allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+    privileged: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    #runAsUser: 26
+    #runAsGroup: 26
+    capabilities:
+      drop:
+        - ALL
+      {{- if .Values.securityContext.allowPrivilegeEscalation }}
+      add:
+        - CHOWN
+      {{- end }}
+  startupProbe:
+    httpGet:
+      path: /health/startup
+      port: 9000
+    initialDelaySeconds: {{ $probesValue.postgres.startupProbe.initialDelaySeconds }}
+    timeoutSeconds: {{ $probesValue.postgres.startupProbe.timeoutSeconds }}
+    periodSeconds: {{ $probesValue.postgres.startupProbe.periodSeconds }}
+    failureThreshold: {{ $probesValue.postgres.startupProbe.failureThreshold }}
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+      port: 9000
+    initialDelaySeconds: {{ $probesValue.postgres.livenessProbe.initialDelaySeconds }}
+    timeoutSeconds: {{ $probesValue.postgres.livenessProbe.timeoutSeconds }}
+    periodSeconds: {{ $probesValue.postgres.livenessProbe.periodSeconds }}
+    failureThreshold: {{ $probesValue.postgres.livenessProbe.failureThreshold }}
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: 9000
+    initialDelaySeconds: {{ $probesValue.postgres.readinessProbe.initialDelaySeconds }}
+    timeoutSeconds: {{ $probesValue.postgres.readinessProbe.timeoutSeconds }}
+    periodSeconds: {{ $probesValue.postgres.readinessProbe.periodSeconds }}
+    failureThreshold: {{ $probesValue.postgres.readinessProbe.failureThreshold }}
+    successThreshold: {{ $probesValue.postgres.readinessProbe.successThreshold }}
+  podLabels:
+    {{- $podTempLabels := dict -}}
+    {{- $_ := set $podTempLabels "sidecar.istio.io/inject" "false" -}}
+    {{- $_ := set $podTempLabels "app" (include "eric-data-document-database-pg.name" .) -}}
+    {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+    {{- $networkpllabels := fromYaml (include "eric-data-document-database-pg.networkpolicyp2.labels" .) -}}
+    {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $podTempLabels $commonLabels $networkpllabels )) | trim | nindent 4 }}
+  podAnnotations:
+    {{- $podTempAnn := dict -}}
+    {{- if .Values.bandwidth.postgres.maxEgressRate }}
+      {{- $_ := set $podTempAnn "kubernetes.io/egress-bandwidth" (.Values.bandwidth.postgres.maxEgressRate | toString) -}}
+    {{- end }}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- $appArmorAnn := include "eric-data-document-database-pg.appArmorProfile" (dict "root" . "Scope" "STS" "containerList" (list "postgres")) | fromYaml -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $podTempAnn $appArmorAnn $commonAnn)) | trim | nindent 4 }}
+  serviceLabels:
+    {{- $labels := dict -}}
+    {{- $_ := set $labels "app" (include "eric-data-document-database-pg.name" .) -}}
+    {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+    {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $labels $commonLabels)) | trim | nindent 4 }}
+  serviceAnnotations:
+    {{- $metricsAnn := dict -}}
+    {{- if .Values.metrics.enabled }}
+      {{- if .Values.enableNewScrapePattern }}
+      {{- $_ := set $metricsAnn "prometheus.io/scrape-role" "endpoints" -}}
+      {{- $_ := set $metricsAnn "prometheus.io/port" (.Values.metrics.service.port | toString) -}}
+      {{- $_ := set $metricsAnn "prometheus.io/path" "/metrics" -}}
+      {{- $_ := set $metricsAnn "prometheus.io/scrape-interval" "15s" -}}
+      {{- $_ := set $metricsAnn "prometheus.io/scheme" (ternary "https" "http" (and (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) (eq .Values.service.endpoints.postgresExporter.tls.enforced "required"))) -}}
+      {{- else }}
+      {{- $_ := set $metricsAnn "prometheus.io/scrape" "true" -}}
+      {{- $_ := set $metricsAnn "prometheus.io/port" (.Values.metrics.service.port | toString) -}}
+      {{- $_ := set $metricsAnn "prometheus.io/scheme" (ternary "https" "http" (and (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) (eq .Values.service.endpoints.postgresExporter.tls.enforced "required"))) -}}
+      {{- end }}
+    {{- end }}
+    {{- $svcAnn := dict -}}
+    {{- $_ := set $svcAnn "helm.sh/resource-policy" "keep" -}}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $metricsAnn $commonAnn $svcAnn)) | trim | nindent 4 }}
+  epAnnotations:
+    {{- $epAnn := dict -}}
+    {{- $_ := set $epAnn "helm.sh/resource-policy" "keep" -}}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $epAnn $commonAnn)) | nindent 4 }}
+  epLabels:
+    {{- $labels := dict -}}
+    {{- $_ := set $labels "app" (include "eric-data-document-database-pg.name" .) -}}
+    {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+    {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $labels $commonLabels)) | nindent 4 }}
+  stsLabels:
+    {{- $statefulSetAnn := dict -}}
+    {{- $_ := set $statefulSetAnn "cluster-name" (include "eric-data-document-database-pg.name" .) -}}
+    {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels.extended-defaults" .) -}}
+    {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $statefulSetAnn $commonLabels)) | trim | nindent 4 }}
+  stsAnnotations:
+    {{- $statefulSetAnn := dict -}}
+    {{- $_ := set $statefulSetAnn "currentPGVersion" "13" -}}
+    {{- $_ := set $statefulSetAnn "helm.sh/resource-policy" "keep" -}}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $statefulSetAnn $commonAnn)) | nindent 4 }}
+  {{- if .Values.metrics.enabled }}
+  servicePorts:
+  - name: {{ template "eric-data-document-database-pg.metricsPortName" . }}
+    port: {{ .Values.metrics.service.port }}
+    targetPort: {{ .Values.metrics.service.port }}
+  {{- end }}
+
+  additionalVolumes:
+    {{- if and (index .Values "resources" "postgres" "limits" "hugepages-2Mi") (index .Values "resources" "postgres" "limits" "hugepages-1Gi") }}
+      {{- if semverCompare "<1.19.0-0" .Capabilities.KubeVersion.Version }}
+        {{- fail "Multisize hugepage is only supported on Kuberentes 1.19 and later" }}
+      {{- else }}
+    - name: hugepage-2mi
+      mountPath: /hugepages-2Mi
+      volumeSource:
+        emptyDir:
+          medium: HugePages-2Mi
+      targetContainers:
+        - postgres
+    - name: hugepage-1gi
+      mountPath: /hugepages-1Gi
+      volumeSource:
+        emptyDir:
+          medium: HugePages-1Gi
+      targetContainers:
+        - postgres
+    {{- end }}
+    {{- else if or (index .Values "resources" "postgres" "limits" "hugepages-2Mi") (index .Values "resources" "postgres" "limits" "hugepages-1Gi") }}
+    - name: hugepage
+      mountPath: /hugepages
+      volumeSource:
+        emptyDir:
+          medium: HugePages
+      targetContainers:
+        - postgres
+    {{- end }}
+
+    {{- if not .Values.persistentVolumeClaim.enabled }}
+    - name: pg-data
+      mountPath: {{ template "eric-data-document-database-pg.mountPath" . }}
+      subPath: postgresql-db
+      targetContainers:
+        - postgres
+        - {{ template "eric-data-document-database-pg.name" . }}-metrics
+      volumeSource:
+        emptyDir: {}
+    {{- end }}
+    - name: pg-config
+      mountPath: /var/lib/postgresql/config
+      targetContainers:
+        - postgres
+      volumeSource:
+        emptyDir: {}
+    - name: pg-run-dir
+      mountPath: /var/run/postgresql
+      targetContainers:
+        - postgres
+      volumeSource:
+        emptyDir: {}
+    - name: tmp
+      mountPath: /tmp
+      targetContainers:
+        - postgres
+        - {{ template "eric-data-document-database-pg.name" . }}-metrics
+      volumeSource:
+        emptyDir: {}
+    - name: tls-key
+      mountPath: /tmp/tlskey
+      targetContainers:
+        - postgres
+      volumeSource:
+        emptyDir:
+          medium: Memory
+    - name: tmpauth
+      mountPath: /temp
+      targetContainers:
+        - postgres
+      volumeSource:
+        emptyDir:
+          medium: Memory
+    - name: nonroot
+      mountPath: /nonroot
+      targetContainers:
+        - postgres
+      volumeSource:
+        emptyDir: {}
+    - name: backuprestore
+      mountPath: /var/data/backuprestore
+      targetContainers:
+        - postgres
+      volumeSource:
+        emptyDir: {}
+    {{- if (eq (include "eric-data-document-database-pg.log.streamingMethod" .) "true") }}
+    {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-forbe-additionalVolumes" . | indent 4 }}
+    {{- end }}
+
+    {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+    {{- if .Values.brAgent.enabled }}
+    - name: brm-client-certificates
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-brm-cert/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-brm-cert
+          defaultMode: 0640
+          optional: true
+    {{- end }}
+    - name: pg-server-certificates
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert/
+      targetContainers:
+        - postgres
+        {{- if eq .Values.service.endpoints.postgresExporter.tls.enforced "required" }}
+        - {{ template "eric-data-document-database-pg.name" . }}-metrics
+        {{- end }}
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert
+          defaultMode: 0640
+          optional: true
+    - name: trusted-ca
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}
+          defaultMode: 0640
+          optional: true
+    - name: client-ca
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-client-ca/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-client-ca
+          defaultMode: 0640
+          optional: true
+    - name: patroni-client-ca
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.name" . }}-patroni-client-ca/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.name" . }}-patroni-client-ca
+          defaultMode: 0640
+          optional: true
+    - name: replica-client-certificates
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-replica-cert/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-replica-cert
+          defaultMode: 0640
+          optional: true
+    - name: postgres-client-certificates
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-postgres-cert/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-postgres-cert
+          defaultMode: 0640
+          optional: true
+    {{- if eq .Values.service.endpoints.postgresExporter.tls.enforced "required" }}
+    - name: pm-ca
+      mountPath: /run/secrets/{{ default "eric-pm-server" .Values.metrics.hostname }}-ca/
+      targetContainers:
+        - {{ template "eric-data-document-database-pg.name" . }}-metrics
+      volumeSource:
+        secret:
+          secretName: {{ default "eric-pm-server" .Values.metrics.hostname }}-ca
+          defaultMode: 0640
+          optional: true
+    - name: metrics-client-certificates
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-metrics-cert/
+      targetContainers:
+        - {{ template "eric-data-document-database-pg.name" . }}-metrics
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-metrics-cert
+          defaultMode: 0640
+          optional: true
+    {{- end }}
+    - name: pg-patroni-server-certificates
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-patroni-root-cert/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-patroni-root-cert
+          defaultMode: 0640
+          optional: true
+    - name: pg-patroni-client-certificates
+      mountPath: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-patroni-cert/
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.secretBaseName" . }}-patroni-cert
+          defaultMode: 0640
+          optional: true
+    {{- end }}
+    {{- if .Values.metrics.enabled }}
+    - name: metrics-config
+      mountPath: /conf
+      targetContainers:
+        - {{ template "eric-data-document-database-pg.name" . }}-metrics
+      volumeSource:
+        configMap:
+          name: {{ template "eric-data-document-database-pg.name" . }}-metrics
+          optional: true
+          defaultMode: 0640
+    {{- end }}
+    {{- if or (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false") (eq .Values.service.endpoints.postgres.tls.enforced "optional") }}
+    - name: super-scrt
+      mountPath: /tmp/supercrt/ 
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ required "Require .Values.pgCredentialName " .Values.pgCredentialName | quote }}
+          defaultMode: 0644
+          optional: true
+    - name: common-scrt
+      mountPath: /tmp/commoncrt/ 
+      targetContainers:
+        - postgres
+      volumeSource:
+        secret:
+          secretName: {{ required "Require .Values.repCredentialName " .Values.repCredentialName | quote }}
+          defaultMode: 0644
+          optional: true
+    {{- end }}
+
+  podImagePullPolicy: {{ include "eric-data-document-database-pg.imagePullPolicy" . | quote }}
+  containerenvs:
+    - containerName: "PG"
+      env:
+      # - name: POD_IP
+      #   valueFrom: { fieldRef: { fieldPath: status.podIP } }
+      # - name: POD_NAME
+      #   valueFrom: { fieldRef: { fieldPath: metadata.name } }
+      # - name: KUBERNETES_NAMESPACE
+      #   valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+      - name: RELEASE_NAME
+        value: {{ .Release.Name | quote }}
+      # - name: STS_REPLICA_SIZE
+      #   value: {{ .Values.highAvailability.replicaCount | quote }}
+      {{- if .Values.persistentVolumeClaim.enabled }}
+      - name: PVC_HOUSEKEEPING_THRESHOLD
+        value: {{ .Values.persistentVolumeClaim.housekeeping_threshold | quote }}
+      - name: PVC_SIZE
+        value: {{ template "eric-data-document-database-pg.persistentVolumeClaim.size" . }}
+      {{- end }}
+      - name: TARGET_PG_VERSION
+        value: "13"
+      - name: LIVENESS_TIMEOUT
+        value: {{ $probesValue.postgres.livenessProbe.timeoutSeconds | quote }}
+      - name: STARTUP_TIMEOUT
+        value: {{ $probesValue.postgres.startupProbe.timeoutSeconds | quote }}
+      - name: LOG_SCHEMA
+        value: {{ template "eric-data-document-database-pg.logSchema" . }}
+      - name: PGHOST
+        value: "/tmp"
+      - name: PG_PORT
+        value: {{ .Values.service.port | quote }}
+      - name: TZ
+        value: {{ $globalValue.timezone | quote }}
+      - name: METRICS_ENABLED
+        value: {{ .Values.metrics.enabled | quote }}
+      - name: METRICS_PORT
+        value: {{ .Values.metrics.service.port | quote }}
+      - name: AGENT_SVC 
+        value: {{ template "eric-data-document-database-pg.name" . }}-bragent
+      - name: BRA_ENABLE 
+        value: {{ .Values.brAgent.enabled | quote }}
+      - name: ENABLE_OPERATOR
+        value: {{ .Values.operator.enabled | quote }}
+        {{- if  (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false") }}
+      - name: SHOULD_SET_PWD
+        value: {{ .Values.resetPgCredential | quote }}
+        {{- else if eq .Values.service.endpoints.postgres.tls.enforced "optional" }}
+      - name: SHOULD_SET_PWD
+        value: {{ .Values.resetPgCredential | quote }}
+        {{- end }}
+      - name: HTTP_PROBE_SERVICE_NAME
+        value: {{ template "eric-data-document-database-pg.name" . }}
+      - name: HTTP_PROBE_POD_NAME 
+        valueFrom: { fieldRef: { fieldPath: metadata.name } }
+      - name: HTTP_PROBE_NAMESPACE
+        valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+      - name: HTTP_PROBE_CONTAINER_NAME
+        value: postgres
+      - name: HTTP_PROBE_LOG_LEVEL
+        value: {{ default "info" .Values.metrics.logLevel | quote | lower }}
+      - name: HTTP_PROBE_STARTUP_CMD_TIMEOUT_SEC
+        value: {{ $probesValue.postgres.startupProbe.timeoutSeconds | quote }}
+      - name: HTTP_PROBE_READINESS_CMD_TIMEOUT_SEC
+        value: {{ $probesValue.postgres.readinessProbe.timeoutSeconds | quote }}
+      - name: HTTP_PROBE_LIVENESS_CMD_TIMEOUT_SEC
+        value: {{ $probesValue.postgres.livenessProbe.timeoutSeconds | quote }}
+      - name: HTTP_PROBE_PORT
+        value: "9000"
+      - name: HTTP_PROBE_CMD_DIR
+        value: /probes
+      #support dual stack
+      - name: POD_IPs
+        valueFrom: { fieldRef: { fieldPath: status.podIPs } }
+      {{- if or (eq (include "eric-data-document-database-pg.internalIPFamily" .) "IPv6") (eq (include "eric-data-document-database-pg.internalIPFamily" .) "IPv4") }}
+        {{- if semverCompare "<1.20.0-0" .Capabilities.KubeVersion.Version }}
+        {{ fail "To support dual stack, the minimal kubernetes version should be 1.20.0" }}
+        {{- end }}
+      - name: ipFamily
+        {{- if (eq (include "eric-data-document-database-pg.internalIPFamily" .) "IPv6") }}
+        value: "IPv6"
+        {{- else }}
+        value: "IPv4"
+        {{- end }}
+      {{- else if (ne (include "eric-data-document-database-pg.internalIPFamily" .) "none") }}
+      {{ fail "the parameter global.internalIPFamily values shall be IPv4 or IPv6" }}
+      {{- end }}
+      # For patroni
+      - name: MTLS_ENABLE
+        {{- if (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false") }}
+        value: "false"
+        {{- else if eq .Values.service.endpoints.postgres.tls.enforced "optional" }}
+        value: "parallel"
+        {{- else }}
+        value: "true"
+        {{- end }}
+      - name: BRM_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-brm-cert
+      - name: PATRONI_SERVER_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-patroni-root-cert
+      - name: PATRONI_CLIENT_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-patroni-cert
+      - name: PATRONI_CLIENT_CA_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.name" . }}-patroni-client-ca
+      - name: PG_SERVER_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert
+      - name: PG_CLIENT_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-postgres-cert
+      - name: PG_CLIENT_CA_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-client-ca
+      - name: REPLICA_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-replica-cert
+      - name: TRUSTED_ROOT_CA_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}
+        # Metrics info, pg container needs to know the metrics info ,as patroni callback script would path endpoints.
+      - name: METRICS_PORT_NAME
+        value: {{ template "eric-data-document-database-pg.metricsPortName" . }}
+      - name: PATRONI_KUBERNETES_NAMESPACE
+        value: "$(KUBERNETES_NAMESPACE)"
+      - name: CONTAINER_NAME
+        value: "postgres"
+      - name: LOG_REDIRECT
+        value: {{ template "eric-data-document-database-pg.logRedirect" . }}
+      {{- if .Values.credentials.kubernetesSecretName }}
+      - name: PG_CREDENTIALS_SECRET_NAME
+        value: {{ .Values.credentials.kubernetesSecretName | quote }}
+      {{- end }}  
+      - name: PATRONI_APP
+        value: {{ template "eric-data-document-database-pg.name" . }}
+      - name: PATRONI_SCOPE
+        value: {{ template "eric-data-document-database-pg.name" . }}
+      - name: PATRONI_NAME
+        value: "$(POD_NAME)"
+      - name: PATRONI_KUBERNETES_LABELS
+        value: "{app: $(PATRONI_APP), cluster-name: $(PATRONI_SCOPE)}"
+      - name: PATRONI_POSTGRESQL_DATA_DIR
+        value: {{ template "eric-data-document-database-pg.mountPath" . }}/pgdata
+      - name: PATRONI_POSTGRESQL_PGPASS
+        value: /tmp/pgpass
+      - name: PATRONI_POSTGRESQL_LISTEN
+        value: "*:$(PG_PORT)"
+      - name: PATRONI_POSTGRESQL_CONNECT_ADDRESS
+        value: "$(POD_IP):$(PG_PORT)"
+      - name: PATRONI_RESTAPI_CONNECT_ADDRESS
+        value: "$(POD_IP):8008"
+      - name: PATRONI_RESTAPI_LISTEN
+        value: "*:8008"
+      - name: PATRONI_LOG_LEVEL
+        value: {{ .Values.patroni.logLevel }}
+      - name: MONITOR_LOG_LEVEL
+        value: {{ .Values.patroni.logLevel }}
+      - name: PATRONI_LOG_FORMAT
+        value: '{"version": "1.2.0", "timestamp": "%(asctime)s", "severity": "%(levelname)s", "service_id": "eric-data-document-database-pg", "message": "%(message)s", "metadata": {"container_name": "$(CONTAINER_NAME)"}, "extra_data": {"file": "%(filename)s", "line": "%(lineno)d"}}'
+      - name: PATRONI_LOG_DATEFORMAT
+        value: '%Y-%m-%dT%H:%M:%S.%f%z'
+      - name: PATRONI_SUPERUSER_USERNAME
+        value: "postgres"
+      - name: PATRONI_REPLICATION_USERNAME
+        value: "replica"
+      - name: PATRONI_REPLICATION_PWDKEY
+        {{- if (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false") }}
+        value: {{ .Values.credentials.keyForReplicaPw | quote }}
+        {{- else if eq .Values.service.endpoints.postgres.tls.enforced "optional" }}
+        value: {{ .Values.credentials.keyForReplicaPw | quote }}
+        {{- else }}
+        value: "fakereppass"
+        {{- end }}
+      - name: PATRONI_SUPERUSER_PWDKEY
+        value: "super-pwd"
+      - name: PATRONI_REPLICATION_USERNAME_PARA_NONMTLS
+        value: "replica"
+      - name: PATRONI_REPLICATION_PWDKEY_PARA_NONMTLS
+        value: "replica-pwd"
+      - name: PATRONI_REPLICATION_PASSWORD_PARA_NONMTLS
+        value: "replica-pwd"
+      - name: PATRONI_SYNCHRONOUS_ENABLE
+        value: {{ .Values.highAvailability.synchronousModeEnabled | quote }}
+    # For backup and restore
+      - name: LOGICALDBBACKUPENABLE
+        value: {{ .Values.brAgent.logicalDBBackupEnable | quote }} 
+    # For service
+      - name: PG_SCRIPT_DIR
+        value: {{ template "eric-data-document-database-pg.scriptPath" . }}
+      - name: PG_LOG_DIR
+        value: {{ template "eric-data-document-database-pg.mountPath" . }}
+      - name: PG_CONFIG_DIR
+        value: {{ template "eric-data-document-database-pg.configPath" . }}
+      - name: POSTGRES_DB
+        value: {{ default "" .Values.postgresDatabase | quote }}
+      - name: ENABLE_SIPTLS
+        {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+        value: "true"
+        {{- else }}
+        value: "false"
+        {{- end }}
+      - name: DATA_SOURCE_USER
+        value: "exporter"
+      - name: DATA_SOURCE_PWDKEY
+        value: "metrics-pwd"
+      - name: BR_LOG_LEVEL
+        value: {{ .Values.brAgent.logLevel }}
+      - name: CALLBACK_LOG_LEVEL
+        value: $(PATRONI_LOG_LEVEL)
+      - name: PGPASSWORD_SUPERUSER
+        value: $(PATRONI_SUPERUSER_PASSWORD)
+      - name: PGUSER_STANDBY
+        value: $(PATRONI_REPLICATION_USERNAME)
+      - name: PGPASSWORD_STANDBY
+        value: $(PATRONI_REPLICATION_PASSWORD)
+      - name: PG_SUPERUSER_PWDKEY
+        value: $(PATRONI_SUPERUSER_PWDKEY)
+      - name: PG_REPLICA_USER
+        value: $(PATRONI_REPLICATION_USERNAME)
+      - name: PG_REPLICA_PWDKEY
+        value: $(PATRONI_REPLICATION_PWDKEY)
+      - name: PG_REPLICA_USER_PARA_NONMTLS
+        value: $(PATRONI_REPLICATION_USERNAME_PARA_NONMTLS)
+      - name: PG_REPLICA_PWDKEY_PARA_NONMTLS
+        value: $(PATRONI_REPLICATION_PWDKEY_PARA_NONMTLS)
+      - name: PGDATA
+        value: "$(PATRONI_POSTGRESQL_DATA_DIR)"
+      - name: LOGGING_COLLECTOR
+        value: {{ .Values.postgresLogging.enabled | quote }}
+      - name: PG_PATRONI_CONFIG
+        value: |
+          restapi:
+            listen: ":8008"
+            connect_address: "$(POD_IP):8008"
+            {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+            certfile: "/tmp/tlskey/patroni.crt"
+            keyfile: "/tmp/tlskey/patroni.key"
+            cafile: "/tmp/tlskey/patroni.ca"
+            verify_client: "required"
+            ciphers: "ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-GCM-SHA256:!SSLv1:!SSLv2:!SSLv3:!TLSv1:!TLSv1.1"
+            {{- end }}
+          bootstrap:
+            dcs:
+              synchronous_mode: $(PATRONI_SYNCHRONOUS_ENABLE)
+              loop_wait: 5
+              max_timelines_history: 2000
+              postgresql:
+                use_pg_rewind: true
+            {{- if .Values.postgresConfig }}
+                parameters:
+                  unix_socket_directories: '/tmp'
+                  {{- if eq (include "eric-data-document-database-pg.default-maxslotwalkeepsize-needed" .) "true" }}
+                  max_slot_wal_keep_size: 1072
+                  {{- end }}
+                  {{- if and $globalValue.timezone (not .Values.postgresConfig.log_timezone ) }}
+                  log_timezone: "TIMEZONE_FROM_ENV"
+                  {{- end }}
+                  {{- if and $globalValue.timezone (not .Values.postgresConfig.timezone ) }}
+                  timezone: "TIMEZONE_FROM_ENV"
+                  {{- end }}
+{{ toYaml .Values.postgresConfig | indent 18 }}
+            {{- end }}
+            {{- if .Values.postgresInitdbArgs }}
+            initdb:
+{{ toYaml .Values.postgresInitdbArgs | indent 12 }}
+            {{- end }}
+            pg_hba:
+            - host all all samehost md5
+            - host all all ::0/0    md5
+            - host all all all md5
+            - host replication $(PATRONI_REPLICATION_USERNAME) all md5
+            post_init: $(PG_SCRIPT_DIR)/pg_init.sh
+          postgresql:
+            callbacks:
+              on_start: $(PG_SCRIPT_DIR)/patroni_callback.py
+              on_stop: $(PG_SCRIPT_DIR)/patroni_callback.py
+              on_role_change: $(PG_SCRIPT_DIR)/patroni_callback.py
+              on_scaling: $(PG_SCRIPT_DIR)/patroni_callback.py
+            {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+            authentication:
+              superuser:
+                sslmode: verify-ca
+                sslrootcert: /run/secrets/{{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}/ca.crt
+                sslkey: /tmp/tlskey/tls.key.postgres
+                sslcert: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-postgres-cert/tls.crt
+              replication:
+                sslmode: verify-ca
+                sslrootcert: /run/secrets/{{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}/ca.crt
+                sslkey: /tmp/tlskey/tls.key.replica
+                sslcert: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-replica-cert/tls.crt
+              rewind: # Has no effect on postgres 10 and lower
+                # username needed for pg_rewind
+                username: postgres
+                sslmode: verify-ca
+                sslrootcert: /run/secrets/{{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}/ca.crt
+                sslkey: /tmp/tlskey/tls.key.postgres
+                sslcert: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-postgres-cert/tls.crt
+            {{- end }}
+            parameters:
+              log_line_prefix: "[%p]"
+              logging_collector: "off"
+              unix_socket_directories: '/tmp'
+              {{- if eq (include "eric-data-document-database-pg.default-maxslotwalkeepsize-needed" .) "true" }}
+              max_slot_wal_keep_size: 1072
+              {{- end }}
+            {{- if eq (include "eric-data-document-database-pg.hugepage-configured" .) "false" }}
+              huge_pages: "off"
+            {{- end }}
+            {{- if and $globalValue.timezone (not ((.Values).postgresConfig).log_timezone ) }}
+              log_timezone: "TIMEZONE_FROM_ENV"
+            {{- end }}
+            {{- if and $globalValue.timezone (not ((.Values).postgresConfig).timezone ) }}
+              timezone: "TIMEZONE_FROM_ENV"
+            {{- end }}
+            {{- if .Values.postgresConfig }}
+{{ toYaml .Values.postgresConfig | indent 14 }}
+            {{- end }}
+            {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+              ssl: on
+              ssl_ca_file: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-client-ca/ca.crt
+              ssl_cert_file: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert/tls.crt
+              ssl_key_file: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert/tls.key
+              ssl_ciphers: "HIGH+ECDHE:HIGH+AES256!DHE!SHA!ADH"
+            {{- if (eq .Values.service.endpoints.postgres.tls.enforced "required") }}
+            pg_hba:
+              - local all all trust
+              - host all all 127.0.0.1/32 trust
+              - host all all ::1/128 trust
+              - local replication all trust
+              - host replication all 127.0.0.1/32 trust
+              - host replication all ::1/128 trust
+              - host all all samehost trust
+              - hostssl all all ::0/0    cert
+              - hostssl all all all cert
+              - hostssl replication $(PATRONI_REPLICATION_USERNAME) all cert
+            {{- else if (eq .Values.service.endpoints.postgres.tls.enforced "optional") }}
+            pg_hba:
+              - local all all trust
+              - host all all 127.0.0.1/32 trust
+              - host all all ::1/128 trust
+              - local replication all trust
+              - host replication all 127.0.0.1/32 trust
+              - host replication all ::1/128 trust
+              - host all all samehost trust
+              - hostnossl all all ::0/0   md5 
+              - hostnossl all all all md5
+              - hostssl all all ::0/0    cert
+              - hostssl all all all cert
+              - hostnossl replication $(PATRONI_REPLICATION_USERNAME_PARA_NONMTLS) all md5
+              - hostssl replication $(PATRONI_REPLICATION_USERNAME) all cert
+            {{- else }}
+            pg_hba:
+              - local all all trust
+              - host all all 127.0.0.1/32 trust
+              - host all all ::1/128 trust
+              - local replication all trust
+              - host replication all 127.0.0.1/32 trust
+              - host replication all ::1/128 trust
+              - host all all samehost trust
+              - hostssl all all ::0/0    md5
+              - hostssl all all all md5
+              - host replication $(PATRONI_REPLICATION_USERNAME) all md5
+            {{- end }}
+            {{- end }}
+            {{- if (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false") }}
+            pg_hba:
+              - local all all trust
+              - host all all 127.0.0.1/32 trust
+              - host all all ::1/128 trust
+              - local replication all trust
+              - host replication all 127.0.0.1/32 trust
+              - host replication all ::1/128 trust
+              - host all all samehost trust
+              - host all all ::0/0    md5
+              - host all all all md5
+              - host replication $(PATRONI_REPLICATION_USERNAME) all md5
+            {{- end }}
+          watchdog:
+            mode: off          
+      - name: PATRONI_KUBERNETES_USE_ENDPOINTS
+        value: "false"
+  sidecars:
+    {{- if .Values.metrics.enabled }}
+    - name: {{ template "eric-data-document-database-pg.name" . }}-metrics
+      #image: #armdocker.rnd.ericsson.se/proj-document-database-pg-dev/data/eric-data-document-database-metrics:7.1.0-43
+      image: {{ template "eric-data-document-database-pg.metricsImagePath" . }}
+      
+      # TODO: code level  done
+      imagePullPolicy: {{ include "eric-data-document-database-pg.imagePullPolicy" . | quote }}
+      # --extend.query-path /conf/queries.yaml TODO: code level  done
+      command:
+      - /bin/bash
+      - -c
+      args:
+      - "
+      /usr/bin/catatonit --
+      {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }}
+      /metrics_entrypoint.sh
+      "
+      env:
+      - name: PG_PORT
+        value: {{ .Values.service.port | quote }}
+      - name: PVC_ENABLE
+        value: {{ .Values.persistentVolumeClaim.enabled | quote }}
+      - name: DATA_DIR
+        value: {{ template "eric-data-document-database-pg.mountPath" . }}
+      - name: KUBERNETES_NAMESPACE
+        valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+      - name: CONTAINER_NAME
+        value: {{ template "eric-data-document-database-pg.name" . }}-metrics
+      - name: LOG_REDIRECT
+        value: {{ template "eric-data-document-database-pg.logRedirect" . }}
+      - name: LOG_SCHEMA
+        value: {{ template "eric-data-document-database-pg.logSchema" . }}
+      - name: HTTP_PROBE_SERVICE_NAME
+        value: {{ template "eric-data-document-database-pg.name" . }}
+      - name: HTTP_PROBE_POD_NAME 
+        valueFrom: { fieldRef: { fieldPath: metadata.name } }
+      - name: HTTP_PROBE_NAMESPACE
+        valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+      - name: HTTP_PROBE_CONTAINER_NAME
+        value: {{ template "eric-data-document-database-pg.name" . }}-metrics
+      - name: HTTP_PROBE_LOG_LEVEL
+        value: {{ default "info" .Values.metrics.logLevel | quote | lower }}
+      - name: HTTP_PROBE_STARTUP_CMD_TIMEOUT_SEC
+        value: {{ $probesValue.metrics.startupProbe.timeoutSeconds | quote }}
+      - name: HTTP_PROBE_READINESS_CMD_TIMEOUT_SEC
+        value: {{ $probesValue.metrics.readinessProbe.timeoutSeconds | quote }}
+      - name: HTTP_PROBE_LIVENESS_CMD_TIMEOUT_SEC
+        value: {{ $probesValue.metrics.livenessProbe.timeoutSeconds | quote }}
+      - name: HTTP_PROBE_PORT
+        value: "9001"
+      - name: HTTP_PROBE_CMD_DIR
+        value: /probes      
+      - name: ENABLE_SIPTLS
+        {{- if and (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) (eq .Values.service.endpoints.postgresExporter.tls.enforced "required") }}
+        value: "true"
+        {{- else }}
+        value: "false"
+        {{- end }}
+      - name: PM_CA_PATH
+        value: /run/secrets/{{ default "eric-pm-server" .Values.metrics.hostname }}-ca
+      - name: PG_SERVER_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert
+      - name: METRICS_CLIENT_TLS_CERT_PATH
+        value: /run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-metrics-cert
+      - name: TZ
+        value: {{ $globalValue.timezone | quote }}
+      - name: METRICS_PORT
+        value: {{ .Values.metrics.service.port | quote }}
+      - name: DATA_SOURCE_PWDKEY
+        value: "metrics-pwd"
+      - name: DATA_SOURCE_URI
+        value: "[$(POD_IP)]:$(PG_PORT)/{{ default "postgres" .Values.metrics.datasource }}?sslmode=disable"
+      - name: DATA_SOURCE_USER
+        value: "exporter"
+      - name: METRICS_LOG_LEVEL
+        value: {{ .Values.metrics.logLevel | quote }}
+      - name: PG_EXPORTER_WEB_LISTEN_ADDRESS
+        value: ":$(METRICS_PORT)"
+      {{- if empty .Values.metrics.datasource }}
+      - name: PG_EXPORTER_AUTO_DISCOVER_DATABASES
+        value: {{ .Values.metrics.autoDiscoverDatabases | quote }}
+      {{- end }}
+      {{- if and (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) (eq .Values.service.endpoints.postgresExporter.tls.enforced "required") }}
+      - name: PG_EXPORTER_SSL_ENABLE
+        {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+        value: "true"
+        {{- else }}
+        value: "false"
+        {{- end }}
+      - name: PG_EXPORTER_SSL_SERVERCERT
+        value: "/run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert/tls.crt"
+      - name: PG_EXPORTER_SSL_SERVERKEY
+        value: "/run/secrets/{{ template "eric-data-document-database-pg.secretBaseName" . }}-root-cert/tls.key"
+      - name: PG_EXPORTER_SSL_MTLS_ENABLE
+        {{- if (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+        value: "true"
+        {{- else }}
+        value: "false"
+        {{- end }}
+      {{- end }}
+      ports:
+      - name: {{ template "eric-data-document-database-pg.metricsPortName" . }}
+        containerPort: {{ .Values.metrics.service.port }}
+      startupProbe:
+        httpGet:
+          path: /health/startup
+          port: 9001
+        initialDelaySeconds: {{ $probesValue.metrics.startupProbe.initialDelaySeconds }}
+        timeoutSeconds: {{ $probesValue.metrics.startupProbe.timeoutSeconds }}
+        periodSeconds: {{ $probesValue.metrics.startupProbe.periodSeconds }}
+        failureThreshold: {{ $probesValue.metrics.startupProbe.failureThreshold }}
+      livenessProbe:
+        httpGet:
+          path: /health/liveness
+          port: 9001
+        initialDelaySeconds: {{ $probesValue.metrics.livenessProbe.initialDelaySeconds }}
+        timeoutSeconds: {{ $probesValue.metrics.livenessProbe.timeoutSeconds }}
+        periodSeconds: {{ $probesValue.metrics.livenessProbe.periodSeconds }}
+        failureThreshold: {{ $probesValue.metrics.livenessProbe.failureThreshold }}
+      readinessProbe:
+        httpGet:
+          path: /health/readiness
+          port: 9001
+        initialDelaySeconds: {{ $probesValue.metrics.readinessProbe.initialDelaySeconds }}
+        timeoutSeconds: {{ $probesValue.metrics.readinessProbe.timeoutSeconds }}
+        periodSeconds: {{ $probesValue.metrics.readinessProbe.periodSeconds }}
+        failureThreshold: {{ $probesValue.metrics.readinessProbe.failureThreshold }}
+        successThreshold: {{ $probesValue.metrics.readinessProbe.successThreshold }}
+      resources:
+        requests:
+        {{- if .Values.resources.metrics.requests.cpu }}
+          cpu: {{ .Values.resources.metrics.requests.cpu  | quote }}
+        {{- end }}
+        {{- if .Values.resources.metrics.requests.memory }}
+          memory: {{ .Values.resources.metrics.requests.memory  | quote }}
+        {{- end }}
+        {{- if index .Values.resources.metrics.requests "ephemeral-storage" }}
+          ephemeral-storage: {{ index .Values.resources.metrics.requests "ephemeral-storage" | quote }}
+        {{- end }}
+        limits:
+        {{- if .Values.resources.metrics.limits.cpu }}
+          cpu: {{ .Values.resources.metrics.limits.cpu  | quote }}
+        {{- end }}
+        {{- if .Values.resources.metrics.limits.memory }}
+          memory: {{ .Values.resources.metrics.limits.memory  | quote }}
+        {{- end }}
+        {{- if index .Values.resources.metrics.limits "ephemeral-storage" }}
+          ephemeral-storage: {{ index .Values.resources.metrics.limits "ephemeral-storage" | quote }}
+        {{- end }}
+      securityContext:
+        {{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "metrics") | nindent 8 }}
+        allowPrivilegeEscalation: false
+        privileged: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        capabilities:
+          drop:
+            - ALL
+    {{- end }}
+{{- if (eq (include "eric-data-document-database-pg.log.streamingMethod" .) "true") }}
+{{- include "eric-log-shipper-sidecar.log-shipper-sidecar-container" . | indent 4 }}
+{{- end }}
+{{- end }}

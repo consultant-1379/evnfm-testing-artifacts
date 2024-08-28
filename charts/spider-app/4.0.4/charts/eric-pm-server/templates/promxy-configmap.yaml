@@ -1,0 +1,71 @@
+{{- if and (empty .Values.promxy.configMapOverrideName) .Values.server.ha.enabled }}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations: {{- include "eric-pm-server.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-server.promxyLabels" . | nindent 4 }}
+  {{- if .Values.promxy.extraLabels }}
+  {{ toYaml .Values.promxy.extraLabels | nindent 4 }}
+  {{- end }}
+  name: {{ template "eric-pm-server.promxyName" . }}
+data:
+  {{- if .Values.promxy.dynamicDiscovery.enabled }}
+  config.yaml: |
+    promxy:
+      server_groups:
+      - job_name: 'eric-pm-server-pods'
+        # anti-affinity for merging values in timeseries between hosts in the server_group
+        anti_affinity: {{ .Values.promxy.antiAffinity | default "10s" }}
+        path_prefix: {{ include "eric-pm-server.prefix" . }}
+        prefer_max: true
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - {{ .Release.Namespace }}
+      {{- if $g.security.tls.enabled }}
+        # configures the protocol scheme used for requests. Defaults to http
+        scheme: https
+        # options for promxy's HTTP client when talking to hosts in server_groups
+        http_client:
+          # dial_timeout controls how long promxy will wait for a connection to the downstream
+          dial_timeout: {{ .Values.promxy.dialTimeout | default "1s" }}
+          tls_config:
+            ca_file: /run/secrets/cacert/cacertbundle.pem
+            cert_file: /run/secrets/pms/clicert.pem
+            key_file: /run/secrets/pms/cliprivkey.pem
+            insecure_skip_verify: false
+        {{- else }}
+        # configures the protocol scheme used for requests. Defaults to http
+        scheme: http
+        # options for promxy's HTTP client when talking to hosts in server_groups
+        http_client:
+          # dial_timeout controls how long promxy will wait for a connection to the downstream
+          # the default is 200ms.
+          dial_timeout: {{ .Values.promxy.dialTimeout | default "1s" }}
+        {{- end }}
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app,__meta_kubernetes_pod_container_name]
+            action: keep
+            regex: {{ template "eric-pm-server.name" . }};eric-pm-server
+          - source_labels: [__address__,__meta_kubernetes_pod_name]
+            action: replace
+            regex: (.+):.+;(.+)
+            replacement: $2.{{ .Values.promxy.headlessServiceName }}.{{ .Release.Namespace }}.svc:{{ template "eric-pm-server.promxyPort" . }}
+            target_label: __address__
+  {{- else }}
+  config.yaml: |
+    config:
+      promxy:
+        server_groups:
+        - static_configs:
+            - targets:
+{{ range until (int .Values.server.replicaCount) }}
+              {{- printf "- %s-%d.%s.%s.svc:9090" (include "eric-pm-server.name" $) . $.Values.promxy.headlessServiceName $.Release.Namespace | indent 14 }}
+{{ end }}
+          # anti-affinity for merging values in timeseries between hosts in the server_group
+          anti_affinity: {{ default "10s" .Values.promxy.antiAffinity | quote }}
+          prefer_max: true
+  {{- end }}
+{{- end }}

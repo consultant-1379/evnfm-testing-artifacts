@@ -1,0 +1,10 @@
+service:
+  port: 9096
+livenessProbe:
+  urlHandler: /liveness
+  timeout: {{ .Values.probes.bulkreporter.livenessProbe.periodSeconds }}
+  script: '[ ! -f /var/tmp/doneStartup ] || /usr/bin/healthcheck.sh'
+readinessProbe:
+  urlHandler: /readiness
+  timeout: {{ .Values.probes.bulkreporter.readinessProbe.periodSeconds }}
+  script: ss -na --tcp --listen src :{{ template "eric-pm-bulk-reporter.sftp-port" . }} | grep {{ template "eric-pm-bulk-reporter.sftp-port" . -}}

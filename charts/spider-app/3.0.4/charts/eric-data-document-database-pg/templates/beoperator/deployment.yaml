@@ -1,0 +1,207 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+{{- $globalValue := fromJson (include "eric-data-document-database-pg.global" .) -}}
+{{- $probesValue := fromJson (include "eric-data-document-database-pg.probes" .) -}}
+{{- $logshipperValues := fromJson (include "eric-data-document-database-pg.ls-values" .) -}}
+{{- $logshipperCopied := deepCopy . -}}
+{{- $logshipperMerged := (mergeOverwrite $logshipperCopied $logshipperValues) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-beoperator
+  labels: {{- include "eric-data-document-database-pg.labels.extended-defaults" . | nindent 4 }}
+  annotations: {{- include "eric-data-document-database-pg.annotations" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ template "eric-data-document-database-pg.name" . }}-beoperator
+  template:
+    metadata:
+      labels:
+        {{- $podTempLabels := dict -}}
+        {{- $_ := set $podTempLabels "app" (printf "%s-%s" (include "eric-data-document-database-pg.name" .) "beoperator") -}}
+        {{- $_ := set $podTempLabels "operator" "eric-data-document-database-pg" -}}
+        {{- $_ := set $podTempLabels "sidecar.istio.io/inject" "false" -}}
+        {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+        {{- $networkpllabels := fromYaml (include "eric-data-document-database-pg.networkpolicyp2.labels" .) -}}
+        {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $podTempLabels $commonLabels $networkpllabels)) | trim | nindent 8 }}
+      annotations:
+        {{- $podTempAnn := dict -}}
+        {{- $_ := set $podTempAnn "checksum/config" (include (print $.Template.BasePath "/beoperator/operatorconfiguration.yaml") . | sha256sum) -}}
+        {{- if ((.Values.bandwidth).beoperator).maxEgressRate }}
+          {{- $_ := set $podTempAnn "kubernetes.io/egress-bandwidth" (.Values.bandwidth.beoperator.maxEgressRate | toString) -}}
+        {{- end }}
+        {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+        {{- $appArmorAnn := include "eric-data-document-database-pg.appArmorProfile" (dict "root" . "Scope" "BeOperator" "containerList" (list "beoperator")) | fromYaml -}}
+        {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $podTempAnn $appArmorAnn $commonAnn)) | trim | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "eric-data-document-database-pg.beServiceAccountName" . }}
+      {{- if include "eric-data-document-database-pg.pullSecrets" . }}
+      imagePullSecrets:
+        - name: {{ template "eric-data-document-database-pg.pullSecrets" . }}
+      {{- end }}
+      securityContext:
+        fsGroup: {{ template "eric-data-document-database-pg.fsGroup.coordinated" . }}
+          {{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.Version }}
+        fsGroupChangePolicy: "OnRootMismatch"
+          {{- end }}
+        {{- if include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . -}}
+{{- include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . | nindent 8 }}
+        {{- end }}
+{{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "Pod") | nindent 8 }}
+      {{- if .Values.affinity.podAntiAffinity }}
+      affinity:
+{{ include "eric-data-document-database-pg.affinity" .| indent 8 }}
+      {{- end }}
+      {{- if or (not (empty .Values.nodeSelector.beoperator)) (not (eq "{}" (include "eric-data-document-database-pg.global.nodeSelector" .))) }}
+      nodeSelector:
+{{- include "eric-data-document-database-pg.nodeSelector.beoperator" . | nindent 8 }}
+      {{- end }}
+      tolerations:
+{{ include "eric-data-document-database-pg.merge-tolerations" (dict "root" . "podbasename" "beoperator") | nindent 8}}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName | quote }}
+      {{- end }}
+      {{- if .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ default 30 .Values.terminationGracePeriodSeconds.beoperator | int }}
+      {{- end }}
+      {{- if ((.Values.podPriority).beoperator).priorityClassName }}
+      priorityClassName: {{ .Values.podPriority.beoperator.priorityClassName | quote }}
+      {{- end }} 
+      containers:
+      - name: {{ template "eric-data-document-database-pg.name" . }}-beoperator
+        image: {{ template "eric-data-document-database-pg.beImagePath" . }}
+        imagePullPolicy: {{ include "eric-data-document-database-pg.imagePullPolicy" . | quote }}
+        env:
+        - name: POSTGRES_OPERATOR_CONFIGURATION_OBJECT
+          value: {{ template "eric-data-document-database-pg.name" . }}-be
+        - name: POD_NAME
+          valueFrom: { fieldRef: { fieldPath: metadata.name } }
+        - name: KUBERNETES_NAMESPACE
+          valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+        - name: TZ
+          value: {{ $globalValue.timezone | quote }}
+        - name: ENABLE_SIPTLS
+          value: {{ include "eric-data-document-database-pg.global-security-tls-enabled" . | quote }}
+        - name: LOG_LEVEL
+          value: {{ default "info" ((((.Values).operator).be).log).logLevel  | quote }}
+        - name: HTTP_PROBE_SERVICE_NAME
+          value: {{ template "eric-data-document-database-pg.name" . }}
+        - name: HTTP_PROBE_POD_NAME 
+          valueFrom: { fieldRef: { fieldPath: metadata.name } }
+        - name: HTTP_PROBE_NAMESPACE
+          valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+        - name: HTTP_PROBE_CONTAINER_NAME
+          value: {{ template "eric-data-document-database-pg.name" . }}-beoperator
+        - name: HTTP_PROBE_LOG_LEVEL
+          value: {{ default "info" ((((.Values).operator).be).log).logLevel | quote | lower }}
+        - name: HTTP_PROBE_STARTUP_CMD_TIMEOUT_SEC
+          value: {{ default "20" ((($probesValue).beoperator).startupProbe).timeoutSeconds | quote }}
+        - name: HTTP_PROBE_READINESS_CMD_TIMEOUT_SEC
+          value: {{ default "15" ((($probesValue).beoperator).readinessProbe).timeoutSeconds | quote }}
+        - name: HTTP_PROBE_LIVENESS_CMD_TIMEOUT_SEC
+          value: {{ default "5" ((($probesValue).beoperator).livenessProbe).timeoutSeconds | quote }}
+        - name: HTTP_PROBE_PORT
+          value: "9000"
+        - name: HTTP_PROBE_CMD_DIR
+          value: /probes
+        - name: CONTAINER_NAME
+          value: {{ template "eric-data-document-database-pg.name" . }}-beoperator
+        - name: LOG_REDIRECT
+          value: {{ template "eric-data-document-database-pg.logRedirect" . }}
+        - name: LOG_SCHEMA
+          value: {{ template "eric-data-document-database-pg.logSchema" . }}
+        - name: TRUSTED_INTERNAL_ROOT_CA
+          value: {{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}
+        - name: TRUSTED_ROOT_CA_PATH
+          value: /run/secrets/{{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}
+        resources:
+          requests:
+          {{- if .Values.resources.beoperator.requests.cpu }}
+            cpu: {{ .Values.resources.beoperator.requests.cpu | quote }}
+          {{- end }}
+          {{- if .Values.resources.beoperator.requests.memory }}
+            memory: {{ .Values.resources.beoperator.requests.memory | quote }}
+          {{- end }}
+          {{- if index .Values.resources.beoperator.requests "ephemeral-storage" }}
+            ephemeral-storage: {{ index .Values.resources.beoperator.requests "ephemeral-storage" | quote }}
+          {{- end }}
+          limits:
+          {{- if .Values.resources.beoperator.limits.cpu }}
+            cpu: {{ .Values.resources.beoperator.limits.cpu | quote }}
+          {{- end }}
+          {{- if .Values.resources.beoperator.limits.memory }}
+            memory: {{ .Values.resources.beoperator.limits.memory | quote }}
+          {{- end }}
+          {{- if index .Values.resources.beoperator.limits "ephemeral-storage" }}
+            ephemeral-storage: {{ index .Values.resources.beoperator.limits "ephemeral-storage" | quote }}
+          {{- end }}
+        command: 
+          - bash
+          - -c
+        args: 
+        - "
+          /usr/bin/catatonit -- 
+          {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }} 
+          /entrypoint.sh"
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 9000
+          initialDelaySeconds: {{ default 0 ((($probesValue).beoperator).startupProbe).initialDelaySeconds }}
+          timeoutSeconds: {{ default 20 ((($probesValue).beoperator).startupProbe).timeoutSeconds }}
+          periodSeconds: {{ default 15 ((($probesValue).beoperator).startupProbe).periodSeconds }}
+          failureThreshold: {{ default 15 ((($probesValue).beoperator).startupProbe).failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: /health/readiness
+            port: 9000
+          initialDelaySeconds: {{ default 0 ((($probesValue).beoperator).readinessProbe).initialDelaySeconds }}
+          timeoutSeconds: {{ default 15 ((($probesValue).beoperator).readinessProbe).timeoutSeconds }}
+          periodSeconds: {{ default 15 ((($probesValue).beoperator).readinessProbe).periodSeconds }}
+          failureThreshold: {{ default 5 ((($probesValue).beoperator).readinessProbe).failureThreshold }}
+          successThreshold: {{ default 1 ((($probesValue).beoperator).readinessProbe).successThreshold }}
+        livenessProbe:
+          httpGet:
+            path: /health/liveness
+            port: 9000
+          initialDelaySeconds: {{ default 0 ((($probesValue).beoperator).livenessProbe).initialDelaySeconds }}
+          timeoutSeconds: {{ default 5 ((($probesValue).beoperator).livenessProbe).timeoutSeconds }}
+          periodSeconds: {{ default 15 ((($probesValue).beoperator).livenessProbe).periodSeconds }}
+          failureThreshold: {{ default 15 ((($probesValue).beoperator).livenessProbe).failureThreshold }}
+        volumeMounts:
+          - name: tmp
+            mountPath: /tmp
+          - name: nonroot
+            mountPath: /nonroot
+          {{- if  (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+          - name: trusted-ca
+            mountPath: /run/secrets/{{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}/
+          {{- end }}
+        {{- include "eric-data-document-database-pg.log.mounts" $logshipperMerged | indent 10 }}
+        securityContext:
+          {{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "beoperator") | nindent 10 }}
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - ALL
+{{- include "eric-data-document-database-pg.log.containers" $logshipperMerged | indent 6 }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: nonroot
+        emptyDir: {}
+      {{- if  (not (eq (include "eric-data-document-database-pg.global-security-tls-enabled" .) "false")) }}
+      - name: trusted-ca
+        secret:
+          secretName: {{ template "eric-data-document-database-pg.trustedInternalRootCa" . }}
+          defaultMode: 0640
+          optional: true
+      {{- end }}
+{{- include "eric-data-document-database-pg.log.volumes" $logshipperMerged | trim | nindent 6 }}
+{{- end }}

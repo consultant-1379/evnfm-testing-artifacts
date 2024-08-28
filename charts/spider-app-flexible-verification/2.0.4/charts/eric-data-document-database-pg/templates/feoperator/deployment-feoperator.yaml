@@ -1,0 +1,196 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+{{- $globalValue := fromJson (include "eric-data-document-database-pg.global" .) -}}
+{{- $probesValue := fromJson (include "eric-data-document-database-pg.probes" .) -}}
+{{- $logshipperValues := fromJson (include "eric-data-document-database-pg.ls-values" .) -}}
+{{- $logshipperCopied := deepCopy . -}}
+{{- $logshipperMerged := (mergeOverwrite $logshipperCopied $logshipperValues) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-feoperator
+  labels: {{- include "eric-data-document-database-pg.labels.extended-defaults" . | nindent 4 }}
+  annotations: {{- include "eric-data-document-database-pg.annotations" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ template "eric-data-document-database-pg.name" . }}-feoperator
+  template:
+    metadata:
+      labels:
+        {{- $podTempLabels := dict -}}
+        {{- $_ := set $podTempLabels "app" (printf "%s-%s" (include "eric-data-document-database-pg.name" .) "feoperator") -}}
+        {{- $_ := set $podTempLabels "operator" "eric-data-document-database-pg" -}}
+        {{- $_ := set $podTempLabels "sidecar.istio.io/inject" "false" -}}
+        {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+        {{- $networkpllabels := fromYaml (include "eric-data-document-database-pg.networkpolicyp2.labels" .) -}}
+        {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $podTempLabels $commonLabels $networkpllabels)) | trim | nindent 8 }}
+      annotations:
+        {{- $podTempAnn := dict -}}
+        {{- $_ := set $podTempAnn "checksum/config" (include (print $.Template.BasePath "/feoperator/configmap-init-operator.yaml") . | sha256sum) -}}
+        {{- if ((.Values.bandwidth).feoperator).maxEgressRate }}
+          {{- $_ := set $podTempAnn "kubernetes.io/egress-bandwidth" (.Values.bandwidth.feoperator.maxEgressRate | toString) -}}
+        {{- end }}
+        {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+        {{- $appArmorAnn := include "eric-data-document-database-pg.appArmorProfile" (dict "root" . "Scope" "FeOperator" "containerList" (list "feoperator")) | fromYaml -}}
+        {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $podTempAnn $appArmorAnn $commonAnn)) | trim | nindent 8 }}
+    spec:
+      serviceAccountName: {{ template "eric-data-document-database-pg.name" . }}-fe
+      {{- if include "eric-data-document-database-pg.pullSecrets" . }}
+      imagePullSecrets:
+        - name: {{ template "eric-data-document-database-pg.pullSecrets" . }}
+      {{- end }}
+      securityContext:
+        fsGroup: {{ template "eric-data-document-database-pg.fsGroup.coordinated" . }}
+          {{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.Version }}
+        fsGroupChangePolicy: "OnRootMismatch"
+          {{- end }}
+        {{- if include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . -}}
+{{- include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . | nindent 8 }}
+        {{- end }}
+{{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "Pod") | nindent 8 }}
+      {{- if .Values.affinity.podAntiAffinity }}
+      affinity:
+{{ include "eric-data-document-database-pg.affinity" .| indent 8 }}
+      {{- end }}
+      {{- if or (not (empty .Values.nodeSelector.feoperator)) (not (eq "{}" (include "eric-data-document-database-pg.global.nodeSelector" .))) }}
+      nodeSelector:
+{{- include "eric-data-document-database-pg.nodeSelector.feoperator" . | nindent 8 }}
+      {{- end }}
+      tolerations:
+{{ include "eric-data-document-database-pg.merge-tolerations" (dict "root" . "podbasename" "feoperator") | nindent 8}}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName | quote }}
+      {{- end }}
+      {{- if .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ default 30 .Values.terminationGracePeriodSeconds.feoperator | int }}
+      {{- end }}
+      {{- if ((.Values.podPriority).feoperator).priorityClassName }}
+      priorityClassName: {{ .Values.podPriority.feoperator.priorityClassName | quote }}
+      {{- end }}
+      containers:
+      - name: {{ template "eric-data-document-database-pg.name" . }}-feoperator
+        image: {{ template "eric-data-document-database-pg.feImagePath" . }}
+        imagePullPolicy: {{ include "eric-data-document-database-pg.imagePullPolicy" . | quote }}
+        env:
+          # For global
+          - name: POD_IP
+            valueFrom: { fieldRef: { fieldPath: status.podIP } }
+          - name: POD_NAME
+            valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          - name: KUBERNETES_NAMESPACE
+            valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+          - name: TZ
+            value: {{ $globalValue.timezone | quote }}
+          - name: RELEASE_NAME
+            value: {{ .Release.Name | quote }}
+          - name: FE_VERSION
+            value: {{ .Chart.Version | quote }}
+          - name: OPERATOR_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: HTTP_PROBE_SERVICE_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: HTTP_PROBE_POD_NAME 
+            valueFrom: { fieldRef: { fieldPath: metadata.name } }
+          - name: HTTP_PROBE_NAMESPACE
+            valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+          - name: HTTP_PROBE_CONTAINER_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}-feoperator
+          - name: HTTP_PROBE_LOG_LEVEL
+            value: {{ default "info" ((((.Values).operator).fe).log).logLevel | quote | lower }}
+          - name: HTTP_PROBE_STARTUP_CMD_TIMEOUT_SEC
+            value: {{ default "20" ((($probesValue).feoperator).startupProbe).timeoutSeconds | quote }}
+          - name: HTTP_PROBE_READINESS_CMD_TIMEOUT_SEC
+            value: {{ default "15" ((($probesValue).feoperator).readinessProbe).timeoutSeconds | quote }}
+          - name: HTTP_PROBE_LIVENESS_CMD_TIMEOUT_SEC
+            value: {{ default "5" ((($probesValue).feoperator).livenessProbe).timeoutSeconds | quote }}
+          - name: HTTP_PROBE_PORT
+            value: "9000"
+          - name: HTTP_PROBE_CMD_DIR
+            value: /probes
+          - name: CONTAINER_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}-feoperator
+          - name: LOG_REDIRECT
+            value: {{ template "eric-data-document-database-pg.logRedirect" . }}
+          - name: LOG_SCHEMA
+            value: {{ template "eric-data-document-database-pg.logSchema" . }}
+        command: 
+          - bash
+          - -c
+        args: 
+        - "
+          /usr/bin/catatonit -- 
+          {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }} 
+          /entrypoint.sh {{ template "eric-data-document-database-pg.feLogLevel" . }} {{ template "eric-data-document-database-pg.feLogDynamic" . }} {{ template "eric-data-document-database-pg.feLogAdpJson" . }}"
+        resources:
+          requests:
+          {{- if .Values.resources.feoperator.requests.cpu }}
+            cpu: {{ .Values.resources.feoperator.requests.cpu | quote }}
+          {{- end }}
+          {{- if .Values.resources.feoperator.requests.memory }}
+            memory: {{ .Values.resources.feoperator.requests.memory | quote }}
+          {{- end }}
+          {{- if index .Values.resources.feoperator.requests "ephemeral-storage" }}
+            ephemeral-storage: {{ index .Values.resources.feoperator.requests "ephemeral-storage" | quote }}
+          {{- end }}
+          limits:
+          {{- if .Values.resources.feoperator.limits.cpu }}
+            cpu: {{ .Values.resources.feoperator.limits.cpu | quote }}
+          {{- end }}
+          {{- if .Values.resources.feoperator.limits.memory }}
+            memory: {{ .Values.resources.feoperator.limits.memory | quote }}
+          {{- end }}
+          {{- if index .Values.resources.feoperator.limits "ephemeral-storage" }}
+            ephemeral-storage: {{ index .Values.resources.feoperator.limits "ephemeral-storage" | quote }}
+          {{- end }}
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 9000
+          initialDelaySeconds: {{ default 0 ((($probesValue).feoperator).startupProbe).initialDelaySeconds }}
+          timeoutSeconds: {{ default 20 ((($probesValue).feoperator).startupProbe).timeoutSeconds }}
+          periodSeconds: {{ default 15 ((($probesValue).feoperator).startupProbe).periodSeconds }}
+          failureThreshold: {{ default 15 ((($probesValue).feoperator).startupProbe).failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: /health/readiness
+            port: 9000
+          initialDelaySeconds: {{ default 0 ((($probesValue).feoperator).readinessProbe).initialDelaySeconds }}
+          timeoutSeconds: {{ default 15 ((($probesValue).feoperator).readinessProbe).timeoutSeconds }}
+          periodSeconds: {{ default 15 ((($probesValue).feoperator).readinessProbe).periodSeconds }}
+          failureThreshold: {{ default 5 ((($probesValue).feoperator).readinessProbe).failureThreshold }}
+          successThreshold: {{ default 1 ((($probesValue).feoperator).readinessProbe).successThreshold }}
+        livenessProbe:
+          httpGet:
+            path: /health/liveness
+            port: 9000
+          initialDelaySeconds: {{ default 0 ((($probesValue).feoperator).livenessProbe).initialDelaySeconds }}
+          timeoutSeconds: {{ default 5 ((($probesValue).feoperator).livenessProbe).timeoutSeconds }}
+          periodSeconds: {{ default 15 ((($probesValue).feoperator).livenessProbe).periodSeconds }}
+          failureThreshold: {{ default 15 ((($probesValue).feoperator).livenessProbe).failureThreshold }}
+        volumeMounts:
+          - name: tmp
+            mountPath: /tmp
+          - name: operator-config
+            mountPath: /conf
+{{- include "eric-data-document-database-pg.log.mounts" $logshipperMerged | indent 10 }}
+        securityContext:
+          {{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "feoperator") | nindent 10 }}
+          allowPrivilegeEscalation: false
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - ALL
+{{- include "eric-data-document-database-pg.log.containers" $logshipperMerged | indent 6 }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: operator-config
+        configMap:
+          name: {{ template "eric-data-document-database-pg.name" . }}-init-operator
+{{- include "eric-data-document-database-pg.log.volumes" $logshipperMerged | trim | nindent 6 }}
+{{- end }}

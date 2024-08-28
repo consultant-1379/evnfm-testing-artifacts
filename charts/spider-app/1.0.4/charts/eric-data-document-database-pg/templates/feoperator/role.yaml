@@ -1,0 +1,254 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-fe
+  labels:
+    {{- include "eric-data-document-database-pg.labels" . | nindent 4 }}
+  annotations:
+    {{- include "eric-data-document-database-pg.annotations" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  # delete is required only for 'patronictl remove'
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - patch
+  - update
+  # the following three privileges are necessary only when using endpoints
+  - create
+  - list
+  - watch
+  # delete is required only for for 'patronictl remove'
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - list
+  - get
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
+- apiGroups:
+  - "apps"
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+  - patch
+  - delete
+{{- if .Capabilities.APIVersions.Has "siptls.sec.ericsson.com/v1" }}
+- apiGroups:
+  - siptls.sec.ericsson.com
+  resources:
+  - internalcertificates
+  - internalusercas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+{{- end }}
+# The following rules is for Openshift
+- apiGroups:
+  - ""
+  resources:
+  - endpoints/restricted
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - delete
+  - deletecollection
+# for FE Operator
+- apiGroups:
+  - docdb.data.ericsson.com
+  resources:
+  - documentdbs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - docdb.data.ericsson.com
+  resources:
+  - documentdbs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - docdb.data.ericsson.com
+  resources:
+  - documentdbs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - "batch"
+  resources:
+  - jobs
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  - delete
+  - deletecollection
+- apiGroups:
+  - "apps"
+  resources:
+  - deployments
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - watch
+  - update
+  - delete
+  - deletecollection
+- apiGroups:
+  - docdb.data.ericsson.com
+  resources:
+  - postgresqls
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  - delete
+  - deletecollection
+# to create ServiceAccounts in each namespace the operator watches
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  - delete
+  - deletecollection
+- apiGroups:
+  - "rbac.authorization.k8s.io"
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  - delete
+  - deletecollection
+- apiGroups:
+  - "networking.k8s.io"
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  - delete
+  - deletecollection
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+  - delete
+  - deletecollection
+{{- end }}

@@ -1,0 +1,1243 @@
+# Global parameters shall be defined in the top level values.yaml
+# They are kept here for indicating which are supported and their default values.
+#global:
+#  pullSecret:
+#  registry:
+#    url: armdocker.rnd.ericsson.se
+#    ## TR: ADPPRG-140214
+#    imagePullPolicy:
+#    ## TR: ADPPRG-140214
+#    pullSecret:
+#    ## Secret must be manually created in the namespace.
+#    ## deprecated, it will be removed
+#    repoPath:
+#    pullSecret:
+#  internalIPFamily:
+#  security:
+#    tls:
+#      enabled: true
+#    policyBinding:
+#      create: true
+#    policyReferenceMap: {}
+#  timezone: UTC
+#  nodeSelector: {}
+#  hooklauncher:
+#    executor: service
+#    executorCharts: []
+#  securityPolicy:
+#    rolekind: ""  # possible values: "ClusterRole", "Role", ""
+#  podSecurityContext:
+#    supplementalGroups: []
+#  fsGroup:
+#    # 'manual' to enforce a specific value (this has the highest precedence)
+#    manual:
+#    # 'namespace' to use the value defined for the namespace set by the cluster admin (second highest precedence)
+#    namespace:
+#  ## TR: ADPPRG-140214
+#  annotations: {}
+#  ## ADPPRG-140214
+#  labels: {}
+#  ## TR: ADPPRG-140214
+#  log:
+#    outputs: []
+#    streamingMethod:
+#  ## TR: ADPPRG-140214
+#  networkPolicy:
+#    enabled:
+## TR: ADPPRG-140214
+#hooklauncher:
+#  backoffLimit:
+#  cleanup:
+#  terminateEarlyOnFailure:
+#
+#nameOverride:
+#
+#topologySpreadConstraints:
+#  eric-pm-server:
+
+## logLevel, possible values: debug, info, warning, error
+logLevel: info
+
+log:
+  streamingMethod:
+  format:
+
+logShipper:
+  logLevel: "info"
+  storage:
+    size: "1Gi"
+    medium: "Ephemeral"
+  input:
+    files:
+      - enabled: true
+        paths:
+          - "configmap-reload.log"
+          - "pm-initenv.log"
+          - "pm-reverseproxy.log"
+          - "pm-exporter.log"
+          - "pm-server.log"
+          - "pm-promxy.log"
+  output:
+    logTransformer:
+      host: eric-log-transformer
+
+scrapeConfig:
+  global:
+    scrapeInterval: 15s
+    scrapeTimeout: 10s
+    evaluationInterval: 1m
+
+  deprecatedJobs:
+    selfMonitoring:
+      enabled: true
+    appMonitoring:
+      enabled: true
+
+  jobs:
+    deprecatedLabels:
+      enabled: true
+    pod:
+      scrape15s:
+        enabled: true
+        metricsPathCount: 5
+      scrape5m:
+        enabled: false
+        metricsPathCount: 5
+      scrape1m:
+        enabled: false
+        metricsPathCount: 5
+      scrape3s:
+        enabled: false
+        metricsPathCount: 5
+    service:
+      scrape15s:
+        enabled: true
+        metricsPathCount: 5
+      scrape5m:
+        enabled: false
+        metricsPathCount: 5
+      scrape1m:
+        enabled: false
+        metricsPathCount: 5
+      scrape3s:
+        enabled: false
+        metricsPathCount: 5
+    endpoints:
+      scrape15s:
+        enabled: true
+        metricsPathCount: 5
+      scrape5m:
+        enabled: false
+        metricsPathCount: 5
+      scrape1m:
+        enabled: false
+        metricsPathCount: 5
+      scrape3s:
+        enabled: false
+        metricsPathCount: 5
+
+## Parameters for Promxy controller - only valid when '.Values.server.ha.enabled' is set to 'true'
+promxy:
+  ## Additional arguments for promxy
+  extraArgs: {}
+
+  ## Additional arguments for promxy
+  extraLabels: {}
+
+  ## Number of promxy pods
+  replicaCount: 2
+
+  ## How long promxy will wait for a connection to Prometheus's targets
+  dialTimeout: "1s"
+
+  ## anti-affinity for merging values in time series between hosts in the server_group.
+  ## Suggested value is the scrape interval
+  antiAffinity: "15s"
+
+  ## If set, use the provided configmap for promxy
+  configMapOverrideName: ""
+
+  ## The name of headless service that is used for promxy to connect to PMS targets directly.
+  ## NOTE: in order to direct access POD with DNS <pod_name.headless-svc.ns.svc>
+  ## StatefulSet.spec.serviceName must point to the 'headless-svc' but k8s is not
+  ## allow to change that field during the upgrade/rollback; so, to keep backward
+  ## compatible, we introduce this param, set to '.Values.server.name'
+  headlessServiceName: "server"
+
+  ## Use static/dynamic discovery for targets
+  dynamicDiscovery:
+    enabled: true
+
+  ## Endpoint that exposes promxy metric on mTLS
+  endpoints:
+    pmScrapeTarget:
+      tls:
+        enforced: required
+        verifyClientCertificate: required
+
+  ## The path for Prometheus to pull metrics from Promxy
+  ## Note: the default path, "/metrics", is shadowed by ReverseProxy
+  metricPath: "/promxy/metrics"
+
+  ## If not given, RBAC & service account will be created for promxy when dynamic
+  ## discovery is enabled; this is needed for promxy to perform the discovery
+  ## to get all prometheus targets. "default" serviceaccount will be used
+  ## when dynamic discovery is disabled.
+  serviceAccountName: ""
+
+## TR: ADPPRG-140214
+#  env: {}
+
+## TR: ADPPRG-140214
+# images: {}
+
+imageCredentials:
+  logshipper:
+    registry:
+      url:
+      imagePullPolicy:
+    repoPath:
+  hooklauncher:
+    registry:
+      url:
+      imagePullPolicy:
+    repoPath:
+  repoPath:
+  pullPolicy: IfNotPresent
+  # pullSecret:
+  registry:
+    ## overrides global registry url
+    url:
+    ## Secret must be manually created in the namespace.
+    ## deprecated, it will be removed
+    ## ADPPRG-140214
+    # pullSecret:
+    # registry:
+    #   imagePullPolicy:
+    #   pullSecret:
+
+  eric-pm-initcontainer:
+    repoPath:
+  eric-pm-server:
+    repoPath:
+  eric-pm-reverseproxy:
+    repoPath:
+  eric-pm-configmap-reload:
+    repoPath:
+  eric-pm-exporter:
+    repoPath:
+
+## Authorization proxy additions
+  ericsecoauthproxy:
+    registry: {}
+      # url: # overrides global.registry.url
+      # imagePullPolicy: # overrides global.registry.imagePullPolicy
+    repoPath: # overrides repoPath from eric-product-info.yaml
+
+  ericsecoauthsap:
+    registry: {}
+      # url: # overrides global.registry.url
+      # imagePullPolicy: # overrides global.registry.imagePullPolicy
+    repoPath: # overrides repoPath from eric-product-info.yaml
+
+
+## updateStrategy for Server
+updateStrategy:
+  server:
+    type: RollingUpdate
+  promxy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 50%
+
+
+## Prometheus server pod termination grace period
+##
+terminationGracePeriodSeconds:
+  server: 300
+  promxy: 300
+
+service:
+  endpoints:
+    scrapeTargets:
+      tls:
+        ## If optional both cleartext and TLS targets will be scraped
+        ## If required only TLS targets will be scraped
+        enforced: required
+    reverseproxy:
+      readWriteTimeout: 300
+      tls:
+        enforced: required
+        # Values: optional or required
+        verifyClientCertificate: required
+        # to use SIP-TLS CA set to true
+        certificateAuthorityBackwardCompatibility: false
+## Additions for Authorization proxy
+    authorizationProxy:
+      tls:
+        # - If 'optional': HTTP only
+        # - If 'required' or <not defined>: HTTPS only
+        # The AuthorizationProxy does not allow both HTTP and HTTPS at same time
+        # options: 'optional' or 'required'
+        enforced: required
+
+        # Enabled/Disable client certificate validation (mTLS) in
+        # Authorization proxy server endpoint.
+        # Effective only IF global.security.tls.enabled == true AND
+        # service.endpoints.authorizationProxy.tls.enforced != optional
+        # - If 'optional': Client certificate verification is not done (no mTLS towards ICCR)
+        # - If 'required': Client certificate verification is performed (mTLS towards ICCR)
+        verifyClientCertificate: required
+
+server:
+  ## Prometheus server container name
+  ##
+  name: server
+
+  ## High Availability and Query Proxy
+  ha:
+    enabled: false
+
+  # Defines the serviceAccountName to use
+  #serviceAccountName: ""
+
+  ## The URL prefix at which the container can be accessed. Useful in the case the '-web.external-url' includes a slug
+  ## so that the various internal URLs are still able to access as they are in the default case.
+  ## (Optional)
+  prefixURL: ""
+
+  ## External URL which can access alertmanager
+  ## Maybe same with Ingress host name
+  baseURL: ""
+
+  ## Additional Prometheus server container arguments
+  ##
+  extraArgs: {}
+
+  ## Additional Prometheus server hostPath mounts
+  ##
+  extraHostPathMounts: []
+    # - name: certs-dir
+    #   mountPath: /etc/kubernetes/certs
+    #   hostPath: /etc/kubernetes/certs
+    #   readOnly: true
+
+  ## Additional Prometheus server emptyDir mounts
+  ##
+  extraEmptyDirVolumeMounts: []
+    # - name: istio-certs
+    #   mountPath: /etc/istio-certs/
+    #   readOnly: true
+
+  ## Additional Prometheus server secret mounts
+  ##
+  extraSecretMounts: []
+    #- name: etcd-certs
+    #  mountPath: /var/run/secrets/etcd/client
+    #  subPath: ""
+    #  readOnly: true
+    #  defaultMode: 420
+    #  secretName: etcd-certs
+
+  ## Additional PM Server volume mounts to handle Prometheus Rules.
+  ## A ConfigMap points to one or more Rules file(s).
+  ## Need a mount entry for each configMap.
+  ##
+  extraConfigmapMounts: []
+    # - name: config-volume-1
+    #  configMap: rules1
+    #  mountPath: /etc/config/rule1
+    #  subPath: ""
+    #  readOnly: true
+    # - name: config-volume-2
+    #  configMap: rules2
+    #  mountPath: /etc/config/rule2
+    #  subPath: ""
+    #  readOnly: true
+
+  ## ConfigMap override where fullname is {{.Values.server.configMapOverrideName}}
+  ## Defining configMapOverrideName will cause templates/server-configmap.yaml
+  ## to NOT generate a ConfigMap resource
+  ##
+  configMapOverrideName: ""
+
+  ## Node tolerations for server scheduling to nodes with taints
+  ##
+  tolerations: []
+    # - key: "key"
+    #   operator: "Equal|Exists"
+    #   value: "value"
+    #   effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+
+  persistentVolume:
+    ## If true, Prometheus server will create/use a Persistent Volume Claim
+    ## If false, use emptyDir
+    ##
+    enabled: false
+
+    ## Prometheus server data Persistent Volume access modes
+    ## Must match those of existing PV or dynamic provisioner
+    ##
+    accessModes:
+      - ReadWriteOnce
+
+    ## Prometheus server data Persistent Volume annotations
+    ##
+    annotations: {}
+
+    ## Prometheus server data Persistent Volume mount root path
+    ##
+    mountPath: /data
+
+    ## Prometheus server data Persistent Volume size
+    ##
+    size: 8Gi
+
+    ## Prometheus server data Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    #storageClass:
+
+    storageConnectivity: networked
+
+    ## Subdirectory of Prometheus server data Persistent Volume to mount
+    ## Useful if the volume's root directory is not empty
+    ##
+    subPath: ""
+
+  ## Annotations to be added to Prometheus server pods
+  ##
+  podAnnotations: {}
+    # iam.amazonaws.com/role: prometheus
+
+  replicaCount: 1
+
+  ## Prometheus server resource requests and limits
+  ##
+
+  service:
+    annotations: {}
+    labels: {}
+    httpPort: 9090
+    httpsPort: 9089
+    ## TR: ADPPRG-140214
+    # servicePort:
+
+  ## Prometheus data retention period time (i.e 360h)
+  ## This parameter will be deprecated, please use server.tsdb.retention.time
+  ##
+  retention: ""
+
+  ## Prometheus data retention period time (i.e 360h)
+  ## The maximum number of bytes of storage blocks to retain (i.e 0)
+  ## Note: if both server.tsdb.retention  and server.extraArgs.storage.tsdb.retention are set
+  ## then server.tsdb.retention will be preferred.
+  ##
+  tsdb:
+    retention:
+      time: ""
+      size: ""
+
+  ## TR: ADPPRG-140214
+  # nodeSelector:
+
+  ## TR: ADPPRG-140214
+  # serviceAccountName:
+
+rbac:
+  appMonitoring:
+    enabled: false
+    configFileCreate: true
+
+tolerations:
+  eric-pm-server: []
+  eric-pm-server-promxy: []
+  hooklauncher: []
+
+topologySpreadConstraints: []
+# this is now also supported:
+# topologySpreadConstraints:
+#   eric-pm-server: []
+#   eric-pm-server-promxy: []
+
+config:
+  ##  An example of alerting rule definition which will be processed by Prometheus.
+  recording_rules: {}
+  #  recording_rules:
+  #    groups:
+  #    - name: node_disk_usages_alerting_rules
+  #      rules:
+  #      - alert: hostDiskUsage80
+  #        expr: 100 - ((node_filesystem_free_bytes{mountpoint="/",fstype!="rootfs"} * 100) / node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}) > 80 and 100 - ((node_filesystem_free_bytes{mountpoint="/",fstype!="rootfs"} * 100) / node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}) < 90
+  #        for: 2m
+  #        labels:
+  #          severity: major
+  #        annotations:
+  #          summary: 'Host disk {{ "{{" }} $value }} % used (instance {{ "{{" }} $labels.instance }})'
+  #          description: 'Host Disk is {{ "{{" }} $value }} % used, LABELS = {{ "{{" }} $labels }}'
+
+  ##  Configure the AlertManager target details so that the Prometheus can
+  ##  process the rules and sends the alerts to the targets defined here.
+  ##  Prometheus will trigger the alerts based on the rules defined under recording_rules.
+  ##  Please refer to the recording_rules example above on how to define an alert.
+  alerting: {}
+  # config:
+  #  alerting:
+  #    alertmanagers:
+  #      - static_configs:
+  #        - targets:
+  #          - "evnfm-alert-manager:9093"
+
+  remote_write: []
+
+  ## For remote write over TLS
+  certm_tls: []
+
+    ## Name of the endpoint
+    #- name:
+
+    ## Same name us sed in the CLI action:
+    ## install-certificate-pem name <trustedCertName> pem ...
+    #  trustedCertName:
+
+    ## Same names as used in the CLI action:
+    ## keystore asymmetric-keys install-asymmetric-key-pkcs12 name <clientKeyName> certificate-name <clientCertName> ...
+    # clientKeyName:
+    ## TR: ADPPRG-140214
+    # clientCertName:
+    # name:
+
+## Prometheus server ConfigMap entries
+##
+serverFiles:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      scrape_timeout: 10s
+      evaluation_interval: 1m
+    {{- if and .Values.config.recording_rules (not .Values.server.extraConfigmapMounts) }}
+    rule_files:
+      - "/etc/config/recording_rules.yml"
+    {{ else }}
+    rule_files:
+      {{- range .Values.server.extraConfigmapMounts }}
+      - {{ printf  "%s/%s.yml" .mountPath .configMap | quote -}}
+      {{- end -}}
+    {{ end }}
+    scrape_configs:
+      - job_name: prometheus
+        metrics_path: {{ template "eric-pm-server.prefix" . }}/metrics
+        static_configs:
+          - targets:
+            - localhost:9090
+            - localhost:9087
+
+      - job_name: 'kubernetes-nodes'
+
+        # Default to scraping over https. If required, just disable this or change to
+        # `http`.
+        scheme: https
+
+        # This TLS & bearer token file config is used to connect to the actual scrape
+        # endpoints for cluster components. This is separate to discovery auth
+        # configuration because discovery & scraping are two separate concerns in
+        # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+        # the cluster. Otherwise, more config options have to be provided within the
+        # <kubernetes_sd_config>.
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          # If your node certificates are self-signed or use a different CA to the
+          # master CA, then disable certificate verification below. Note that
+          # certificate verification is an integral part of a secure infrastructure
+          # so this should only be disabled in a controlled environment. You can
+          # disable certificate verification by uncommenting the line below.
+          #
+          #insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+          - role: node
+
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+
+
+      - job_name: 'kubernetes-nodes-cadvisor'
+
+        # Default to scraping over https. If required, just disable this or change to
+        # `http`.
+        scheme: https
+
+        # This TLS & bearer token file config is used to connect to the actual scrape
+        # endpoints for cluster components. This is separate to discovery auth
+        # configuration because discovery & scraping are two separate concerns in
+        # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+        # the cluster. Otherwise, more config options have to be provided within the
+        # <kubernetes_sd_config>.
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          # If your node certificates are self-signed or use a different CA to the
+          # master CA, then disable certificate verification below. Note that
+          # certificate verification is an integral part of a secure infrastructure
+          # so this should only be disabled in a controlled environment. You can
+          # disable certificate verification by uncommenting the line below.
+          #
+          #insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+          - role: node
+
+        # This configuration will work only on kubelet 1.7.3+
+        # As the scrape endpoints for cAdvisor have changed
+        # if you are using older version you need to change the replacement to
+        # replacement: /api/v1/nodes/${1}:4194/proxy/metrics
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+      # Scrape config for service endpoints.
+      #
+      # The relabeling allows the actual service scrape endpoint to be configured
+      # via the following annotations:
+      #
+      # * `prometheus.io/scrape`: Only scrape services that have a value of `true`
+      # * `prometheus.io/scheme`: If the metrics endpoint is secured then you will need
+      # to set this to `https` & most likely set the `tls_config` of the scrape config.
+      # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
+      # * `prometheus.io/port`: If the metrics are exposed on a different port to the
+      # service then set this appropriately.
+      - job_name: 'kubernetes-service-endpoints'
+
+        kubernetes_sd_configs:
+          - role: endpoints
+
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: job
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ((?:\[.+\])|(?:.+))(?::\d+);(\d+)
+            replacement: $1:$2
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: kubernetes_name
+
+      # Example scrape config for probing services via the Blackbox Exporter.
+      #
+      # The relabeling allows the actual service scrape endpoint to be configured
+      # via the following annotations:
+      #
+      # * `prometheus.io/probe`: Only probe services that have a value of `true`
+      - job_name: 'kubernetes-services'
+
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+
+        kubernetes_sd_configs:
+          - role: service
+
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]
+            action: keep
+            regex: true
+          - source_labels: [__address__]
+            target_label: __param_target
+          - target_label: __address__
+            replacement: blackbox
+          - source_labels: [__param_target]
+            target_label: instance
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            target_label: kubernetes_name
+
+      # Example scrape config for pods
+      #
+      # The relabeling allows the actual pod scrape endpoint to be configured via the
+      # following annotations:
+      #
+      # * `prometheus.io/scrape`: Only scrape pods that have a value of `true`
+      # * `prometheus.io/path`: If the metrics path is not `/metrics` override this.
+      # * `prometheus.io/port`: Scrape the pod on the indicated port instead of the default of `9102`.
+      - job_name: 'kubernetes-pods'
+
+        kubernetes_sd_configs:
+          - role: pod
+
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ((?:\[.+\])|(?:.+))(?::\d+);(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+          - source_labels: [__meta_kubernetes_pod_phase]
+            action: drop
+            regex: Pending|Succeeded|Failed
+
+networkPolicy:
+  ## Enable creation of NetworkPolicy resources.
+  ##
+  enabled: true
+
+# Node labels for PM server pod assignment
+nodeSelector:
+  eric-pm-server: {}
+  eric-pm-server-promxy: {}
+  hooklauncher: {}
+
+labels: {}
+
+podDisruptionBudget:
+  minAvailable: 0
+
+podSecurityContext:
+  supplementalGroups: []
+
+podPriority:
+  eric-pm-server:
+    priorityClassName: ""
+  eric-pm-server-promxy:
+    priorityClassName: ""
+  hooklauncher:
+    priorityClassName: ""
+
+## Probes
+probes:
+  server:
+    readinessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 30
+      failureThreshold: 3
+      successThreshold: 1
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 15
+      failureThreshold: 3
+      successThreshold: 1
+  reverseproxy:
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 15
+      timeoutSeconds: 15
+      failureThreshold: 3
+      successThreshold: 1
+    livenessProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 15
+      timeoutSeconds: 15
+      failureThreshold: 3
+      successThreshold: 1
+  exporter:
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 15
+      timeoutSeconds: 15
+      failureThreshold: 3
+      successThreshold: 1
+    livenessProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 15
+      timeoutSeconds: 15
+      failureThreshold: 3
+      successThreshold: 1
+  logshipper:
+    livenessProbe:
+      initialDelaySeconds: 1
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 3
+      successThreshold: 1
+  configmapreload:
+    readinessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 30
+      failureThreshold: 3
+      successThreshold: 1
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 15
+      failureThreshold: 3
+      successThreshold: 1
+  promxy:
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 120
+      successThreshold: 1
+    livenessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 6
+      successThreshold: 1
+## Authorization proxy added
+  ericsecoauthproxy:
+    startupProbe:
+      initialDelaySeconds: 0
+      failureThreshold: 25
+      periodSeconds: 5
+      timeoutSeconds: 5
+    livenessProbe:
+      initialDelaySeconds: 0
+      failureThreshold:
+      periodSeconds: 5
+      timeoutSeconds: 5
+    readinessProbe:
+      initialDelaySeconds: 0
+      failureThreshold: 1
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+
+resources:
+  eric-pm-initcontainer:
+    requests:
+      cpu: "50m"
+      memory: "50Mi"
+      ephemeral-storage:
+    limits:
+      cpu: "1"
+      memory: "200Mi"
+      ephemeral-storage:
+  # Memory usage can increase based on number of pods to scrape, metrics and retentation days.
+  # Queries usage for long time metrics can also increase the memory usage.
+  eric-pm-server:
+    limits:
+      cpu: "2"
+      memory: "2048Mi"
+      ephemeral-storage:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+      ephemeral-storage:
+  eric-pm-configmap-reload:
+    limits:
+      cpu: "200m"
+      memory: "32Mi"
+      ephemeral-storage:
+    requests:
+      cpu: "100m"
+      memory: "8Mi"
+      ephemeral-storage:
+  eric-pm-exporter:
+    limits:
+      cpu: "200m"
+      memory: "32Mi"
+      ephemeral-storage:
+    requests:
+      cpu: "100m"
+      memory: "8Mi"
+      ephemeral-storage:
+  eric-pm-reverseproxy:
+    limits:
+      cpu: "2"
+      memory: "128Mi"
+      ephemeral-storage:
+    requests:
+      cpu: "100m"
+      memory: "32Mi"
+      ephemeral-storage:
+  logshipper:
+    limits:
+      cpu: "100m"
+      memory: "100Mi"
+      ephemeral-storage:
+    requests:
+      cpu: "50m"
+      memory: "50Mi"
+      ephemeral-storage:
+  hooklauncher:
+    requests:
+      memory: "50Mi"
+      cpu: "20m"
+      ephemeral-storage: "100Mi"
+    limits:
+      memory: "100Mi"
+      cpu: "50m"
+      ephemeral-storage: "100Mi"
+  promxy:
+    requests:
+      memory: "512Mi"
+      cpu: "100m"
+      ephemeral-storage:
+    limits:
+      memory: "2048Mi"
+      cpu: "2"
+      ephemeral-storage:
+## Added for Authorization proxy
+  ericsecoauthsap:
+    requests:
+      cpu: "50m"
+      memory: "130Mi"
+      ephemeral-storage:
+    limits:
+      cpu: "50m"
+      memory: "130Mi"
+      ephemeral-storage:
+  ericsecoauthproxy:
+    requests:
+      cpu: "50m"
+      memory: "130Mi"
+      ephemeral-storage:
+    limits:
+      cpu: "150m"
+      memory: "256Mi"
+      ephemeral-storage:
+
+## Security Context for all containers
+securityContext: {}
+ # runAsUser: 47040
+ # runAsGroup: 47040
+
+## Note: Each Security Policy Rolebinding only be created when its coresponding Service Account is existing
+securityPolicy:
+  eric-pm-server:
+  # This attribute is only valid if rbac.appMonitoring is enabled.
+    rolename: "eric-pm-server"
+  eric-pm-server-promxy:
+  # DO NOT USE 'eric-pm-server-promxy', or '{.Value.nameOverride}-promxy' if nameOverride is specified, which is dedicated to Promxy dynamic discovery.
+  # This attribute is only valid if promxy.dynamicDiscovery is enabled.
+    rolename: "eric-pm-server-promxy-sp"
+  hooklauncher:
+    rolename: "eric-lcm-smart-helm-hook"
+
+affinity:
+  podAntiAffinity: "hard"
+  topologyKey: "kubernetes.io/hostname"
+
+bandwidth:
+  maxEgressRate: ""
+  ## this is now also supported:
+  # eric-pm-server:
+  #   maxEgressRate: ""
+  ## TR: ADPPRG-140214
+  # hooklauncher:
+  #   maxEgressRate:
+
+annotations: {}
+
+appArmorProfile:
+  type:
+  localhostProfile:
+  eric-pm-initcontainer:
+    type:
+    localhostProfile:
+  eric-pm-configmap-reload:
+    type:
+    localhostProfile:
+  eric-pm-exporter:
+    type:
+    localhostProfile:
+  eric-pm-reverseproxy:
+    type:
+    localhostProfile:
+  eric-pm-server:
+    type:
+    localhostProfile:
+  hooklauncher:
+    type:
+    localhostProfile:
+  logshipper:
+    type:
+    localhostProfile:
+## Authorization proxy added
+  ericsecoauthsap:
+    type:
+    localhostProfile:
+  ericsecoauthproxy:
+    type:
+    localhostProfile:
+
+seccompProfile:
+  type:
+  #  ## Authorization proxy Addition. Commented out as done in Alarm Handler. Kept for clarity
+  #  ericsecoauthsap:
+  #    type:
+  #    localhostProfile:
+  #  ericsecoauthproxy:
+  #    type:
+  #    ## TR: ADPPRG-140214
+  #    localhostProfile:
+  #   ## TR: ADPPRG-140214
+  #   eric-pm-configmap-reload:
+  #     type:
+  #     localhostProfile:
+  #   ## TR: ADPPRG-140214
+  #   eric-pm-exporter:
+  #     type:
+  #     localhostProfile:
+  #   ## TR: ADPPRG-140214
+  #   eric-pm-reverseproxy:
+  #     type:
+  #     localhostProfile:
+  #   ## TR: ADPPRG-140214
+  #   eric-pm-server:
+  #     type:
+  #     localhostProfile:
+  # localhostProfile: {}
+
+
+
+## ----------------------------------------------------------------------
+## Authorization proxy Additions. Ingress
+## ----------------------------------------------------------------------
+#
+# External certificate info.
+# For an ingress to be created also the following has to be set:
+# authorizationProxy.enabled=true and global.tls.enabled=true
+ingress:
+  ingressClass:
+  hostname: ""
+  enabled: false
+  certificates:
+    asymmetricKeyCertificateName: "pm-query-server-key/pm-query-server-certificate"
+    trustedCertificateListName: "pm-query-server-ca"
+    ## TR: ADPPRG-140214
+    # caSecret:
+    # secretName:
+  ## TR: ADPPRG-140214
+  # annotations: {}
+
+
+## ----------------------------------------------------------------------
+## The rest of authorization proxy parameters are enclosed inside
+## 'authorizationProxy:' struct
+## ----------------------------------------------------------------------
+authorizationProxy:
+  ## Optional.
+  ## Is Authorization Proxy enabled or not
+  #
+  enabled: false # Default value
+
+  ## Optional
+  ##
+  ## The prefix part of the counter name
+  ## The counter name format is: <counterPrefix> + "_" + apo2_http_requests_total
+  #counterPrefix # Default value ""
+
+  ## Conditional, if authorizationProxy.enabled=true
+  ## Service Provider container port where authorized HTTP requests is forwarded
+  #
+  localSpPort: 9090
+
+  ## The list of externally published resource paths which will be protected by authorization proxy.
+  ## Authorization proxy will create "routes" rule in HTTPProxy for each resource path listed here.
+  #
+  protectedPaths:
+      - /api/v1/query
+
+  ## Conditional, if ADP IAM Server is deployed with non-default chart name
+  ##
+  ## The name of the ADP IAM Server service (chart)
+  ##
+  adpIamServiceName: eric-sec-access-mgmt # Default value
+
+  ## Conditional, if ADP PM Server is deployed with non-default chart name
+  ##
+  ## The name of the ADP PM Server service (chart)
+  ##
+  # adpPmServiceName: eric-pm-server # Default value
+
+  ## Conditional, if ADP SIP TLS is deployed with non-default chart name
+  ##
+  ## The name of the ADP SIP TLS service (chart)
+  ##
+  ## Default value
+  # adpSipTlsServiceName: eric-sec-sip-tls
+
+  ## Conditional, if ADP ICCR is deployed with Envoy client certificates enabled
+  ## and with non-default chart name.
+  ## Obsolete if authorizationProxy.adpIccrCaSecret is set.
+  ##
+  ## The name of the ADP ICCR Ingress service (chart)
+  #
+  adpIccrServiceName: eric-tm-ingress-controller-cr
+
+  ## Conditional, if ADP ICCR is deployed with Envoy client certificates enabled
+  ## and Envoy client certificate CA(s) is stored in non-default k8s secret.
+  ## If this parameter is set then authorizationProxy.adpIccrServiceName is obsolete.
+  ##
+  ## The name of the k8s secret which contains ADP ICCR Envoy client certificate CAs
+  #
+  ## Default value
+  # adpIccrCaSecret:
+
+  ## Conditional, if ADP IAM Server cluster internal service port has a
+  ## non-default value. In IAM server this implies the following parameters:
+  ## .Values.service.tls.port and .Values.service.port
+  ## (IAM server has different port numbers depending on if TLS is enabled/disabled)
+  ##
+  ## The IAM Server cluster internal service port number
+  #
+  #adpIamServicePort: 8443 # Example value.
+  adpIamServicePort: ""  # Default value.
+
+  ## Conditional, if ADP IAM Server uses different realm name (than "oam") for Admin User Management.
+  ##
+  ## The name of the IAM server realm used by authorization proxy
+  #
+  adpIamRealm: oam # Default value
+
+  ## Optional
+  ##
+  ## The container port number for authorization proxy sidecar
+  #
+  port: 8888 # Default value
+
+  ## Optional
+  ##
+  ## The suffix part of the service provider specific Authorization Proxy k8s service name.
+  ## The service name format is <service-provider-chart-name> + "-" + suffixOverride
+  #
+  suffixOverride: authproxy # Default value
+
+  ## Optional
+  ##
+  ## If authorization proxy should use TLS when forwarding authorized HTTP requests
+  ## to service provider inside the POD, then service provider must provide the
+  ## client certificate and private key pair: It shall
+  ## - Make a volume in POD, which, when mounted as directory by authorization
+  ##   proxy, shall result files "cert.pem" and "key.pem" in the mounted directory.
+  ## - Give the volume name in this parameter.
+  ## If the parameter is left empty, TLS is not used when http requests are
+  ## forwarded to service provider.
+  ## NOTE. Not used with PMS. Communication between Authorization proxy and PMS is
+  ##       POD internal and done without TLS to PMS port 9090
+  #
+  #  localSpClientCertVolumeName: "authz-proxy-pms-query-client-certificates" # Default value
+  localSpClientCertVolumeName: "" # Default value.
+
+  ## Optional
+  ##
+  ## The name of k8s secret providing IAM client credentials. Relevant only
+  ## when TLS is disabled (TLS shouldn't be disabled in production, only in
+  ## customer demos and similar).
+  ## Must have the same value as authenticationProxy.clientCredentialSecret
+  ## in IAM server.
+  #
+  adpIamClientCredentialSecret: "" # Default value
+
+  ## Optional
+  ##
+  ## The name of k8s secret providing IAM Server Admin credentials.
+  ## Must have the same value as statefulset.adminSecret
+  ## in IAM server.
+  #
+  adpIamAdminSecret: "eric-sec-access-mgmt-creds" # Default value
+
+  ## Optional
+  ##
+  ## Timeout for HTTP request which is forwarded to the Service Provider.
+  ## Authorization proxy waits for reply spRequestTimeout seconds after
+  ## which it replies with 503 code to downstream.
+  ##
+  spRequestTimeout: 8
+
+  ## Optional
+  ##
+  ## Timeout for authorization interrogation which is sent to IAM server.
+  ## Authorization proxy waits for reply iamRequestTimeout seconds after
+  ## which it replies with 503 code to downstream.
+  ##
+  iamRequestTimeout: 8
+
+  authzLog:
+     ## Conditional, required if log streaming is used, i.e log.outputs="stream"
+     ## Logtransformer host i.e log transformer kubernetes service name.
+     ## Note in this case service provider has to also provide client certificate for
+     ## log transformer, see application developers guide step 9.
+     #host: eric-log-transformer # Default value
+     logtransformer:
+        host: eric-log-transformer
+
+  sipoauth2:
+     ## Optional
+     ## Enables or disables authorization proxy to use IAM sip-oauth2 api
+     ## to get identity when communicating with IAM.
+     ## Deprecated
+     enabled: true
+
+  ## TR: ADPPRG-140214
+  # resources:
+    # ericsecoauthproxy:
+      # limits:
+        # cpu:
+        # ephemeral-storage:
+        # memory:
+      # requests:
+        # cpu:
+        # ephemeral-storage:
+        # memory:
+    # ericsecoauthsap:
+      # limits:
+        # cpu:
+        # ephemeral-storage:
+        # memory:
+      # requests:
+        # cpu:
+        # ephemeral-storage:
+        # memory:

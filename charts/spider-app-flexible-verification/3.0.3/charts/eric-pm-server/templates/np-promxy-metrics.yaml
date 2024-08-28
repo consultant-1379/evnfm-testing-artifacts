@@ -1,0 +1,31 @@
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+{{- if and $g.networkPolicy .Values.networkPolicy -}}
+{{- if and $g.networkPolicy.enabled .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ template "eric-pm-server.promxyName" . }}-pm-access
+  labels: {{ include "eric-pm-server.promxyLabels" . | nindent 4 }}
+  annotations: {{ include "eric-pm-server.annotations" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "eric-pm-server.promxyName" . }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+           app.kubernetes.io/name: {{ template "eric-pm-server.name" . }}
+    ports:
+      {{- if or (and $g.security.tls.enabled (eq .Values.service.endpoints.reverseproxy.tls.enforced "optional")) (not $g.security.tls.enabled) }}
+      - port: 8082
+        protocol: TCP
+      {{- end }}
+      {{- if $g.security.tls.enabled }}
+      - port: 9084
+        protocol: TCP
+      {{- end }}
+{{- end }}
+{{- end }}

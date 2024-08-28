@@ -1,0 +1,22 @@
+1.0.0
+- Add new not ETSI standard selector type, upgrade operations, upgrade policies and modification_qualifier option "up"
+1.0.1
+- Uplifted package version with updated charts
+1.0.2
+- Fix software version to be compliant with upgrade pattern stated in vnfd
+1.0.3
+- Remove redundant rollback at failure pattern from upgrade operations
+1.0.4
+- Move not standard selector type logic from imports to vnfd
+1.0.5
+- Remove usage of deprecated com.ericsson.sec.tls/v1alpha1, siptls.sec.ericsson.com/v1alpha1
+1.0.6
+- Update siptls.sec.ericsson.com to version 6.1.0+1
+1.0.7
+- Changed versions of charts
+- Added eric-data-document-database-pg to spider-app
+1.0.8
+- Disabled by default eric-data-document-database
+- Disabled PVCs for eric-data-document-database and influxdb
+1.0.9
+- Updated eric-pm-bulk-reporter to use replicaCount from values, in order to support Scale

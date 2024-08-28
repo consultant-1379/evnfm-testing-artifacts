@@ -1,0 +1,45 @@
+{{- if and .Values.server.ha.enabled .Values.promxy.dynamicDiscovery.enabled -}}
+{{- if empty .Values.promxy.serviceAccountName }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ template "eric-pm-server.promxyName" . }}
+  labels: {{- include "eric-pm-server.promxyLabels" . | nindent 4 }}
+  {{- if .Values.promxy.extraLabels }}
+  {{ toYaml .Values.promxy.extraLabels | nindent 4 }}
+  {{- end }}
+  annotations: {{ include "eric-pm-server.annotations" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ template "eric-pm-server.promxyName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ template "eric-pm-server.promxyName" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+
+---
+
+{{- if and .Values.server.ha.enabled .Values.promxy.dynamicDiscovery.enabled -}}
+{{- $securityPolicyflags := include "eric-pm-server.securityPolicy" . | fromYaml -}}
+{{- $securityPolicyExists := get $securityPolicyflags "securityPolicyExists" -}}
+{{- $oldPolicyFlag := get $securityPolicyflags "oldPolicyFlag" -}}
+{{- if and (eq "true" $securityPolicyExists) (eq "false" $oldPolicyFlag) -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ template "eric-pm-server.eric-pm-server-promxy.securityPolicy.rolebinding.name" . }}
+  annotations: {{ include "eric-pm-server.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-server.promxyLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: {{ include "eric-pm-server.securityPolicy.rolekind" . }}
+  name: {{ include "eric-pm-server.eric-pm-server-promxy.securityPolicy.rolename" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ template "eric-pm-server.promxyName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end -}}
+{{- end -}}

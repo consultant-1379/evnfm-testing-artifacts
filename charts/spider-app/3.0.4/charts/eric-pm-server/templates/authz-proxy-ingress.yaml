@@ -1,0 +1,39 @@
+{{/*
+Defining a custom resource for an ICCR HTTPProxy used for exposing the query
+REST API (PromQL) interface externally.
+*/}}
+{{- if .Values.ingress.enabled }}
+{{- $authorizationProxy := fromJson (include "eric-pm-server.authz-proxy-values" .) -}}
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+{{- if not .Values.authorizationProxy.enabled -}}
+  {{- printf "HTTPProxy (ingress.enabled=true) is only supported when Authorization Proxy is enabled (authorizationProxy.enabled=true)." | fail -}}
+{{- end -}}
+{{- if not .Values.ingress.hostname -}}
+  {{- printf "An ingress URI (ingress.hostname) is required when ingress is enabled (ingress.enabled=%t)" .Values.ingress.enabled | fail -}}
+{{- end -}}
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: {{ template "eric-pm-server.name" . }}-ingress-httpproxy
+  labels:
+    {{- $commonLabels := include "eric-pm-server.labels" . | fromYaml }}
+    {{- $authzproxyLabels := include "eric-pm-server.authz-proxy-labels" . | fromYaml }}
+    {{- include "eric-pm-server.mergeLabels" (dict "location" .Template.Name "sources" (list $commonLabels $authzproxyLabels)) | trim | nindent 4 }}
+  annotations:
+    {{- $ingressClass := dict }}
+    {{- if .Values.ingress.ingressClass }}
+    {{- $_ := set $ingressClass "kubernetes.io/ingress.class" (.Values.ingress.ingressClass) -}}
+    {{- end }}
+    {{- $pmServerAnn := include "eric-pm-server.annotations" . | fromYaml }}
+    {{- $ingressAnn := .Values.ingress.annotations -}}
+    {{- include "eric-pm-server.mergeAnnotations" (dict "location" .Template.Name "sources" (list $ingressClass $pmServerAnn $ingressAnn)) | trim | nindent 4 }}
+spec:
+  virtualhost:
+    fqdn: {{ .Values.ingress.hostname | quote }}
+    tls:
+      secretName: {{ template "eric-pm-server.name" . }}-external-query-server-certificate-secret
+      clientValidation:
+        caSecret: {{ template "eric-pm-server.name" . }}-external-query-ca-certificate-secret
+  routes:
+    {{- include "eric-pm-server.authz-proxy-ingress-routes" . | nindent 4 }}
+{{ end }} {{/* ingress.enabled */}}

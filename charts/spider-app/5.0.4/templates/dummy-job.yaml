@@ -1,0 +1,28 @@
+{{ if .Values.job.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ template "spider-app.name" . }}-job"
+  labels:
+    app.kubernetes.io/name: {{ include "spider-app.name" . }}
+    helm.sh/chart: {{ include "spider-app.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  backoffLimit: {{ .Values.job.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.job.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: {{ include "spider-app.chart" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.global.pullSecret }}
+      containers:
+        - name: hook-job
+          image: {{ .Values.global.registry.url }}/proj-am/busybox/busybox:latest
+          command: ['sh', '-c', '{{ .Values.job.command }}']
+      restartPolicy: Never
+{{- end }}

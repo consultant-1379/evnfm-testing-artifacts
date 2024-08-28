@@ -1,0 +1,46 @@
+{{/* vim: set filetype=mustache: */}}
+apiVersion: v1
+kind: Service
+metadata:
+{{- if .Values.service.annotations }}
+  annotations:
+{{ toYaml .Values.service.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ template "eric-adp-gs-testapp.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: "{{ .Values.name }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+{{- if .Values.service.labels }}
+{{ toYaml .Values.service.labels | indent 4 }}
+{{- end }}
+  name: {{ template "eric-adp-gs-testapp.name" . }}
+spec:
+{{- if .Values.service.clusterIP }}
+  clusterIP: {{ .Values.service.clusterIP }}
+{{- end }}
+{{- if .Values.service.externalIPs }}
+  externalIPs:
+{{ toYaml .Values.service.externalIPs | indent 4 }}
+{{- end }}
+{{- if .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.service.loadBalancerIP }}
+{{- end }}
+{{- if .Values.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+  {{- range $cidr := .Values.service.loadBalancerSourceRanges }}
+    - {{ $cidr }}
+  {{- end }}
+{{- end }}
+  ports:
+    - name: http
+      port: {{ .Values.service.servicePort }}
+      protocol: TCP
+      targetPort: 8080
+    {{- if .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+    {{- end }}
+  selector:
+    service: {{ template "eric-adp-gs-testapp.name" . }}
+  type: "{{ .Values.service.type }}"

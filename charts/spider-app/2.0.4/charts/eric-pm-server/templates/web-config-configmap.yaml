@@ -1,0 +1,13 @@
+{{- $g := fromJson (include "eric-pm-server.global" .) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations: {{- include "eric-pm-server.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-server.labels" . | nindent 4 }}
+  name: {{ template "eric-pm-server.name" . }}-web-config
+data:
+  config.yml: |
+    http_server_config:
+      headers:
+        X-Frame-Options: sameorigin
+        X-Content-Type-Options: nosniff

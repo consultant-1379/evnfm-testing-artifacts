@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "type": "object",
+  "required": [
+    "eric-adp-gs-testapp"
+  ],
+  "properties": {
+    "eric-adp-gs-testapp": {
+      "type": "object",
+      "required": [
+        "service"
+      ],
+      "properties": {
+        "service": {
+          "type": "object",
+          "required": [
+            "replicaCount"
+          ],
+          "properties": {
+            "replicaCount": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}

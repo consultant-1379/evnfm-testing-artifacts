@@ -1,0 +1,163 @@
+{{- if (eq (include "eric-data-document-database-pg.load-legecy-template-enabled" .) "true") }}
+{{- if or .Release.IsUpgrade .Release.IsInstall }}
+{{- $globalValue := fromJson (include "eric-data-document-database-pg.global" .) -}}
+{{- $logshipperValues := fromJson (include "eric-data-document-database-pg.ls-values" .) -}}
+{{- $logshipperCopied := deepCopy . -}}
+{{- $logshipperMerged := (mergeOverwrite $logshipperCopied $logshipperValues) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-hook-cleanup
+  labels: {{- include "eric-data-document-database-pg.labels.extended-defaults" . | nindent 4 }}
+  annotations:
+    {{- $jobAnn := dict -}}
+    {{- $_ := set $jobAnn "helm.sh/hook" "pre-install,pre-rollback,pre-upgrade" -}}
+    {{- $_ := set $jobAnn "helm.sh/hook-delete-policy" "hook-succeeded,before-hook-creation" -}}
+    {{- $_ := set $jobAnn "helm.sh/hook-weight" "-4" -}}
+    {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+    {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $jobAnn $commonAnn)) | trim | nindent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+        {{- $podTempLabels := dict -}}
+        {{- $_ := set $podTempLabels "sidecar.istio.io/inject" "false" -}}
+        {{- $_ := set $podTempLabels "app" (printf "%s-%s" (include "eric-data-document-database-pg.name" .) "hook-cleanup") -}}
+        {{- $commonLabels := fromYaml (include "eric-data-document-database-pg.labels" .) -}}
+        {{- $networkpllabels := fromYaml (include "eric-data-document-database-pg.networkpolicyp2.labels" .) -}}
+        {{- include "eric-data-document-database-pg.mergeLabels" (dict "location" .Template.Name "sources" (list $podTempLabels $commonLabels $networkpllabels)) | trim | nindent 8 }}
+      annotations:
+        {{- $podTempAnn := dict -}}
+        {{- if .Values.bandwidth.cleanuphook.maxEgressRate }}
+          {{- $_ := set $podTempAnn "kubernetes.io/egress-bandwidth" (.Values.bandwidth.cleanuphook.maxEgressRate | toString) -}}
+        {{- end }}
+        {{- $commonAnn := fromYaml (include "eric-data-document-database-pg.annotations" .) -}}
+        {{- $appArmorAnn := include "eric-data-document-database-pg.appArmorProfile" (dict "root" . "Scope" "CleanupHook" "containerList" (list "hook-cleanup")) | fromYaml -}}
+        {{- include "eric-data-document-database-pg.mergeAnnotations" (dict "location" .Template.Name "sources" (list $podTempAnn $appArmorAnn $commonAnn)) | trim | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ template "eric-data-document-database-pg.name" . }}-hook
+      {{- if include "eric-data-document-database-pg.pullSecrets" . }}
+      imagePullSecrets:
+        - name: {{ template "eric-data-document-database-pg.pullSecrets" . }}
+      {{- end }}
+      securityContext:
+        fsGroup: {{ template "eric-data-document-database-pg.fsGroup.coordinated" . }}
+          {{- if semverCompare ">=1.23.0-0" .Capabilities.KubeVersion.Version }}
+        fsGroupChangePolicy: "OnRootMismatch"
+          {{- end }}
+        {{- if include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . -}}
+{{- include "eric-data-document-database-pg.podSecurityContext.supplementalGroups" . | nindent 8 }}
+        {{- end }}
+{{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "Pod") | nindent 8 }}
+      {{- if or (not (empty .Values.nodeSelector.cleanuphook)) (not (eq "{}" (include "eric-data-document-database-pg.global.nodeSelector" .))) }}
+      nodeSelector:
+{{- include "eric-data-document-database-pg.nodeSelector.cleanuphook" . | nindent 8 }}
+      {{- end }}
+      tolerations:
+{{ include "eric-data-document-database-pg.merge-tolerations" (dict "root" . "podbasename" "cleanuphook") | nindent 8}}
+      {{- if .Values.podPriority.cleanuphook.priorityClassName }}
+      priorityClassName: {{ .Values.podPriority.cleanuphook.priorityClassName | quote }}
+      {{- end }}
+      containers:
+        - name: hook-cleanup
+          image: {{ template "eric-data-document-database-pg.kubeclientImagePath" . }}
+          imagePullPolicy: {{ include "eric-data-document-database-pg.imagePullPolicy" . | quote }}
+          env:
+          - name: TZ
+            value: {{ $globalValue.timezone | quote }}
+          - name: STATEFULSET_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: REPLICA_COUNT
+            value: {{ .Values.highAvailability.replicaCount | quote }}
+          - name: CLUSTER_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}
+          - name: RELEASE_NAME
+            value: {{ .Release.Name | quote }}
+          - name: LOG_SCHEMA
+            value: {{ template "eric-data-document-database-pg.logSchema" . }}
+          - name: KUBERNETES_NAMESPACE
+            valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+          - name: TRANSIT_COMPONENT
+            value: {{ template "eric-data-document-database-pg.name" . }}-transit-pvc
+          - name: NETWORK_POLICY_HOOK_NAME
+            value: {{ template "eric-data-document-database-pg.name" . }}-hook
+          - name: CONTAINER_NAME
+            value:  {{ template "eric-data-document-database-pg.name" . }}-hook
+          {{- if and (.Release.IsUpgrade) (eq (include "eric-data-document-database-pg.hooklog" .) "true") }}
+          - name: LOG_REDIRECT
+            value: {{ template "eric-data-document-database-pg.logRedirect" . }}
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - "/usr/bin/catatonit -- 
+              {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }}
+              /usr/bin/python {{ template "eric-data-document-database-pg.hook.scriptPath" . }}/kube_handler.py
+              --cleanup_patroni_configmaps --cleanup_upgrading_flag_configmap; sleep 3"
+          {{- else }}
+          - name: LOG_REDIRECT
+            value: "stdout"
+          command:
+            - /bin/bash
+            - -c
+          args:
+          {{ if .Release.IsInstall }}
+            - "/usr/bin/catatonit -- 
+              {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }}
+              /usr/bin/python {{ template "eric-data-document-database-pg.hook.scriptPath" . }}/kube_handler.py 
+              --cleanup_patroni_configmaps  --cleanup_upgrading_flag_configmap --installation"
+          {{- else }}
+            - "/usr/bin/catatonit -- 
+              {{ template "eric-data-document-database-pg.stdRedirectCMD" .  }}
+              /usr/bin/python {{ template "eric-data-document-database-pg.hook.scriptPath" . }}/kube_handler.py 
+              --cleanup_patroni_configmaps --cleanup_upgrading_flag_configmap"
+          {{- end }}
+          {{- end }}
+          securityContext:
+            {{- include "eric-data-document-database-pg.seccompProfile" (dict "Values" .Values "Scope" "hook-cleanup") | nindent 12 }}
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          {{- if and (.Release.IsUpgrade) (eq (include "eric-data-document-database-pg.hooklog" .) "true") }}
+          {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-mounts" $logshipperMerged | indent 12 }}
+          {{- end }}
+          resources:
+            requests:
+            {{- if .Values.resources.kube_client.requests.cpu }}
+              cpu: {{ .Values.resources.kube_client.requests.cpu  | quote }}
+            {{- end }}
+            {{- if .Values.resources.kube_client.requests.memory }}
+              memory: {{ .Values.resources.kube_client.requests.memory  | quote }}
+            {{- end }}
+            {{- if index .Values.resources.kube_client.requests "ephemeral-storage" }}
+              ephemeral-storage: {{ index .Values.resources.kube_client.requests "ephemeral-storage" | quote }}
+            {{- end }}
+            limits:
+            {{- if .Values.resources.kube_client.limits.cpu }}
+              cpu: {{ .Values.resources.kube_client.limits.cpu  | quote }}
+            {{- end }}
+            {{- if .Values.resources.kube_client.limits.memory }}
+              memory: {{ .Values.resources.kube_client.limits.memory  | quote }}
+            {{- end }}
+            {{- if index .Values.resources.kube_client.limits "ephemeral-storage" }}
+              ephemeral-storage: {{ index .Values.resources.kube_client.limits "ephemeral-storage" | quote }}
+            {{- end }}
+      {{- if and (.Release.IsUpgrade) (eq (include "eric-data-document-database-pg.hooklog" .) "true") }}
+      {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-container-for-hooks" $logshipperMerged | indent 8 }}
+      {{- end }}
+      volumes:
+      {{- if and (.Release.IsUpgrade) (eq (include "eric-data-document-database-pg.hooklog" .) "true") }}
+      {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-volumes-for-hooks" $logshipperMerged | indent 6 }}
+      {{- end }}
+      - name: tmp
+        emptyDir: {}
+{{- end -}}
+{{- end }}

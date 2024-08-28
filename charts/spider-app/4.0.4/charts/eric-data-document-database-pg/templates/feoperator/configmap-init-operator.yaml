@@ -1,0 +1,136 @@
+{{- if (eq (include "eric-data-document-database-pg.operator-enabled" .) "true") }}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ template "eric-data-document-database-pg.name" . }}-init-operator
+  labels: {{- include "eric-data-document-database-pg.labels.extended-defaults" . | nindent 4 }}
+  annotations: {{- include "eric-data-document-database-pg.annotations" . | nindent 4 }}
+data:
+  configValues.yaml: |-
+{{- if .Values.global }}
+    global:
+{{ toYaml .Values.global | indent 6 }}
+{{- end }}
+{{- if .Values.operator }}
+{{- if .Values.operator.operandConfig }}
+    operandConfig:
+      {{- if .Values.operator.operandConfig.hugepages_2Mi }}
+      hugepages_2Mi: {{ .Values.operator.operandConfig.hugepages_2Mi | quote }}
+      {{- end }}
+      {{- if .Values.operator.operandConfig.hugepages_1Gi }}
+      hugepages_1Gi: {{ .Values.operator.operandConfig.hugepages_1Gi | quote }}
+      {{- end }}
+      {{- if .Values.operator.operandConfig.ephemeral_storage_base }}
+      ephemeral_storage_base: {{ .Values.operator.operandConfig.ephemeral_storage_base | quote }}
+      {{- end }}
+{{- end }}
+{{- end }}
+    imageCredentials:
+{{ toYaml .Values.imageCredentials | indent 6 }}
+    securityPolicy:
+{{ toYaml .Values.securityPolicy | indent 6 }}
+    securityContext:
+{{ toYaml .Values.securityContext | indent 6 }}
+    service:
+      port: {{ .Values.service.port }}
+    probes:
+{{ toYaml .Values.probes | indent 6 }}
+    log:
+{{ toYaml .Values.log | indent 6 }}
+    podPriority:
+{{ toYaml .Values.podPriority | indent 6 }}
+{{- if .Values.images }}
+    images:
+{{ toYaml .Values.images | indent 6 }}
+{{- end }}
+{{- if .Values.seccompProfile }}
+    seccompProfile:
+{{ toYaml .Values.seccompProfile | indent 6 }}
+{{- end }}
+{{- if .Values.appArmorProfile }}
+    appArmorProfile:
+{{ toYaml .Values.appArmorProfile | indent 6 }}
+{{- end }}
+
+{{- if .Values.podSecurityContext }}
+    podSecurityContext:
+{{ toYaml .Values.podSecurityContext | indent 6 }}
+{{- end }}
+
+{{- if .Values.logShipper }}
+    logShipper:
+{{ toYaml .Values.logShipper | indent 6 }}   
+{{- end }}
+
+{{- if .Values.enableNewScrapePattern }}
+    enableNewScrapePattern: {{ .Values.enableNewScrapePattern }}
+{{- end }}
+
+{{- if (eq (include "eric-data-document-database-pg.log.streamingMethod" .) "true") }}
+{{- $logshipperImageDict := dict "logshipperSidecarImage" ((((.Values).global).logShipper).config).image }}
+{{- $logshipperValues := fromJson (include "eric-data-document-database-pg.ls-template-values" .) }}
+{{- $logshipperCopied := deepCopy . }}
+{{- $logshipperMerged := (mergeOverwrite $logshipperCopied $logshipperValues) }}
+{{- if eq (default "" ((((.Values).global).logShipper).deployment).model) "static" }}
+    logshipperCo:
+      sidecar:
+        containers:
+        {{- include "eric-data-document-database-pg.log-shipper-sidecar-container" $logshipperMerged | nindent 10 }}
+        mounts:
+        {{- include "eric-data-document-database-pg.log-shipper-sidecar-mounts" $logshipperMerged | indent 10 }}
+        volumes:
+        {{- include "eric-data-document-database-pg.log-shipper-sidecar-volumes" $logshipperMerged | trim | nindent 10 }}
+        configmap:
+        {{- include "eric-data-document-database-pg.logshipper-sidecar-configmap" $logshipperMerged | nindent 10 }}
+        {{- if ne "false" (((((.Values).global).security).tls).enabled | toString) }}
+        clientInternalCertificate:
+        {{- include "eric-data-document-database-pg.logshipper-tls-cert-lt-client" $logshipperMerged | nindent 10 }}
+        {{- end }}
+      {{- if not (eq (((((.Values).global).logShipper).config).hookEnabled | toString) "false") }}
+      {{- $hookContext := dict }}
+      {{- $_ := set $hookContext "root" $logshipperMerged }}
+      hook:
+        containers:
+        {{- include "eric-data-document-database-pg.log-shipper-sidecar-container-for-hooks" $logshipperMerged | indent 10 }}
+        volumes:
+        {{- include "eric-data-document-database-pg.log-shipper-sidecar-volumes-for-hooks" $logshipperMerged | indent 10 }}
+        configmap:
+        {{- include "eric-data-document-database-pg.logshipper-sidecar-configmap-for-hooks" $hookContext | indent 10 }}
+        {{- if ne "false" (((((.Values).global).security).tls).enabled | toString) }}
+        clientInternalCertificate:
+        {{- include "eric-data-document-database-pg.logshipper-tls-cert-lt-client-for-hooks" $hookContext | indent 10 }}
+        {{- end }}
+      {{- end -}}
+{{- else }}
+    logshipperCo:
+      sidecar:
+        containers:
+        {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-container" $logshipperMerged | nindent 10 }}
+        mounts:
+        {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-mounts" $logshipperMerged | indent 10 }}
+        volumes:
+        {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-volumes" $logshipperMerged | trim | nindent 10 }}
+        configmap:
+        {{- include "eric-log-shipper-sidecar.logshipper-sidecar-configmap" $logshipperMerged | nindent 10 }}
+        {{- if ne "false" (((((.Values).global).security).tls).enabled | toString) }}
+        clientInternalCertificate:
+        {{- include "eric-log-shipper-sidecar.logshipper-tls-cert-lt-client" $logshipperMerged | nindent 10 }}
+        {{- end }}
+      {{- if not (eq (((((.Values).global).logShipper).config).hookEnabled | toString) "false") }}
+      {{- $hookContext := dict }}
+      {{- $_ := set $hookContext "root" $logshipperMerged }}
+      hook:
+        containers:
+        {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-container-for-hooks" $logshipperMerged | indent 10 }}
+        volumes:
+        {{- include "eric-log-shipper-sidecar.log-shipper-sidecar-volumes-for-hooks" $logshipperMerged | indent 10 }}
+        configmap:
+        {{- include "eric-log-shipper-sidecar.logshipper-sidecar-configmap-for-hooks" $hookContext | indent 10 }}
+        {{- if ne "false" (((((.Values).global).security).tls).enabled | toString) }}
+        clientInternalCertificate:
+        {{- include "eric-log-shipper-sidecar.logshipper-tls-cert-lt-client-for-hooks" $hookContext | indent 10 }}
+        {{- end }}
+      {{- end -}}
+{{- end }}
+{{- end }}
+{{- end }}

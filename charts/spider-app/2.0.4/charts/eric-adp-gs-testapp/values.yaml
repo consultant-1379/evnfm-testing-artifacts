@@ -1,0 +1,134 @@
+debug:
+  enabled: false
+service:
+  name: eric-adp-gs-testapp
+  replicaCount: 1
+  annotations: {}
+  labels: {}
+  clusterIP: ""
+
+  ## List of IP addresses at which the eric-adp-gs-testapp service is available
+  ## Ref: https://kubernetes.io/docs/user-guide/services/#external-ips
+  ##
+  externalIPs: []
+
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+  nodePort: 0
+  servicePort: 8080
+  type: ClusterIP
+
+users:
+  adpuser:
+    credentialsSecret: eric-adp-gs-testapp-adpuser-secret
+
+ingress:
+  enabled: true
+  annotations: {}
+  #   kubernetes.io/ingress.class: nginx
+  #   kubernetes.io/tls-acme: 'true'
+
+  ## Must be provided if Ingress is enabled
+  ##
+  hosts: #[]
+     - eric-adp-gs-testapp.ezhotav.adpci07.seli.gic.ericsson.se
+
+  ## Secrets must be manually created in the namespace
+  ##
+  # tls: []
+  #   - secretName: eric-adp-gs-testapp-server-tls
+  #     hosts:
+  #       - eric-adp-gs-testapp.domain.com
+
+livenessProbe:
+  initialDelaySeconds: 600
+  timeoutSeconds: 15
+  periodSeconds: 30
+  successThreshold: 1
+  failureThreshold: 3
+readinessProbe:
+  initialDelaySeconds: 30
+  timeoutSeconds: 15
+  periodSeconds: 30
+  successThreshold: 1
+  failureThreshold: 3
+
+global:
+  registry:
+    url: "armdocker.rnd.ericsson.se"
+  pullSecret: ""
+
+imageCredentials:
+  repoPath: proj-adp-cicd-drop
+  repoPathKafka: "proj-adp-message-bus-kf-drop"
+  pullPolicy: IfNotPresent
+images:
+  eric-adp-gs-testapp:
+    name: eric-adp-gs-testapp
+    tag: 0.0.1-164
+  initContainers:
+    messagebuskf:
+      name: message-bus-kf-2.2.0
+      tag: "1.8.0-9"
+geode:
+  locatorServiceName: "eric-data-kvdb-ag-locator"
+  locatorServicePort: "10334"
+kafka:
+  enabled: false
+  topic:
+    name: kafkaLoadtest
+    partitions: 3
+    replicationFactor: 3
+  hostname: eric-data-message-bus-kf
+  port: 9092
+dataCoordinator:
+  hostname: eric-data-coordinator-zk
+  port: "2181"
+alarmHandler:
+  faultIndicationTopicName: AdpFaultIndication
+  stateIndicationTopicName: AdpAlarmStateIndication
+  serviceName: eric-fh-alarm-handler
+  servicePort: 5005
+  timeoutInSec: 10
+cassandra:
+  hostname: eric-data-wide-column-database-cd
+  port: 9042
+snmpAlarmProvider:
+  hostname:
+  port:
+  timeoutInSec: 10
+  retryCount: 2
+postgresql:
+  hostname: eric-adp-gs-testapp-db-pg
+  hostnameReplica: eric-adp-gs-testapp-db-pg-replica
+  port: 5432
+  database: adp_gs_cm
+  user: cm
+  password: cmpw
+  enableHA: true
+consul:
+  serviceName: eric-enabl-dynamic-infrastructure-cs-dc1-cli
+  servicePort: 8500
+cmmediator:
+  serviceName: eric-cm-mediator
+  port: 5003
+pmserver:
+  serviceName: eric-pm-server
+  port: 9090
+  namespace: "n01"
+pmbulkreporter:
+  sftphost: adpci07.seli.gic.ericsson.se
+  sftpport: 22
+  sftpuser: adpuser
+  sftppasswd: adpsecret
+bro:
+  hostname: eric-ctrl-bro
+  port: 7001
+zookeeper:
+  hostname: eric-data-coordinator-zk
+  port: 2181
+tls:
+  dced:
+    enabled: false
+  kms:
+    enabled: false

@@ -1,0 +1,8 @@
+*.idea
+*.iml
+*.cms
+*.zip
+ChangeLog.txt
+*.mf
+!manifest.mf
+charts/*.tgz

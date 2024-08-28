@@ -1,0 +1,24 @@
+{{- if .Values.config.nbi.file.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "spider-app.name" . }}-file-config
+  labels:
+    app: {{ template "spider-app.name". }}
+    chart: {{ template "spider-app.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  {{- if .Values.config.nbi.file.json.configMap }}
+  config.json: |-
+    {{- .Values.config.nbi.file.json.configMap | nindent 4 }}
+  {{- end}}
+  {{- if .Values.config.nbi.file.script.configMap }}
+  config.conf: |-
+    {{- .Values.config.nbi.file.script.configMap | nindent 4 }}
+  {{- end}}
+  {{- if .Values.config.nbi.file.xml.configMap }}
+  config.xml: |-
+    {{- .Values.config.nbi.file.xml.configMap | nindent 4 }}
+  {{- end}}
+{{- end -}}

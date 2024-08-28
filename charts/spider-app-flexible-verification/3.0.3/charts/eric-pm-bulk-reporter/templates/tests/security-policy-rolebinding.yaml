@@ -1,0 +1,21 @@
+{{- if .Values.helmtest.enabled -}}
+{{- $securityPolicyflags := include "eric-pm-bulk-reporter.securityPolicy" . | fromYaml -}}
+{{- $createFlag := get $securityPolicyflags "createFlag" -}}
+{{- $oldPolicyFlag := get $securityPolicyflags "oldPolicyFlag" -}}
+{{- if and (eq "true" $createFlag) (eq "false" $oldPolicyFlag) -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ template "eric-pm-bulk-reporter.helmtest.securityPolicy.rolebinding.name" . }}
+  annotations: {{- include "eric-pm-bulk-reporter.annotations" . | nindent 4 }}
+  labels: {{- include "eric-pm-bulk-reporter.labels" . | nindent 4 }}
+roleRef:
+ apiGroup: rbac.authorization.k8s.io
+ kind: {{ include "eric-pm-bulk-reporter.securityPolicy.rolekind" . }}
+ name: {{ include "eric-pm-bulk-reporter.helmtest.securityPolicy.rolename" . }}
+subjects:
+ - kind: ServiceAccount
+   name: {{ include "eric-pm-bulk-reporter.helmtest.serviceAccountName" . }}
+   namespace: {{ .Release.Namespace }}
+{{- end -}}
+{{- end -}}

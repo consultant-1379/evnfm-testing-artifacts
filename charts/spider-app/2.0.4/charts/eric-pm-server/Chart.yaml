@@ -1,0 +1,9 @@
+apiVersion: v1
+appVersion: 2.1.0
+description: A Helm chart for the ADP Performance Management(PM) Server
+engine: gotpl
+maintainers:
+- name: Ericsson AB
+  url: www.ericsson.com
+name: eric-pm-server
+version: 11.2.0-12
